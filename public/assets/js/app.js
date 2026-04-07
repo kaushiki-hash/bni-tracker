@@ -24,3 +24,22 @@ document.addEventListener('DOMContentLoaded', () => {
         dateEl.innerText = new Date().toLocaleDateString(undefined, options);
     }
 });
+import { db } from './db/firebase-config.js';
+import { collection, addDoc } from "firebase/firestore";
+
+const testAddMember = async () => {
+    try {
+        const docRef = await addDoc(collection(db, "members"), {
+            memberName: "Test Member 1",
+            teamId: "Team - A",
+            status: "active",
+            captainId: "kn5AecqvSpBM5lWubJue" // Using the ID from your screenshot
+        });
+        console.log("✅ Success! Member added with ID: ", docRef.id);
+    } catch (e) {
+        console.error("❌ Error adding member: ", e);
+    }
+};
+
+// Uncomment the line below to run the test once!
+ testAddMember();
