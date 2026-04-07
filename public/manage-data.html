@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manage Data - BNI Attendance Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @keyframes slide-in {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes slide-out {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+    }
+
+    .animate-slide-in {
+      animation: slide-in 0.3s ease-out;
+    }
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .tab-button {
+      border-bottom: 3px solid transparent;
+      transition: all 0.3s ease;
+    }
+
+    .tab-button.active {
+      border-bottom-color: #06b6d4;
+      color: #06b6d4;
+    }
+
+    .modal {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal.hidden {
+      display: none;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 40;
+    }
+
+    .modal-content {
+      background-color: white;
+      border-radius: 0.5rem;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      z-index: 50;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <!-- Navbar -->
+  <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <a href="/admin-dashboard.html" class="text-slate-600 hover:text-slate-900">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+          </svg>
+        </a>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900">Manage Data</h1>
+          <p class="text-sm text-slate-600">Captains, Teams & Members</p>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Tab Navigation -->
+    <div class="flex gap-8 mb-6 border-b border-slate-200">
+      <button data-tab="captains" class="tab-button active text-slate-900 font-semibold py-4 px-2">
+        Captains
+      </button>
+      <button data-tab="teams" class="tab-button text-slate-600 font-semibold py-4 px-2 hover:text-slate-900">
+        Teams
+      </button>
+      <button data-tab="members" class="tab-button text-slate-600 font-semibold py-4 px-2 hover:text-slate-900">
+        Members
+      </button>
+    </div>
+
+    <!-- Captains Tab -->
+    <div data-content="captains" class="space-y-6">
+      <button id="btn-add-captain" class="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors">
+        + Add Captain
+      </button>
+      <div id="captains-list" class="space-y-3">
+        <!-- Captains loaded here -->
+      </div>
+    </div>
+
+    <!-- Teams Tab -->
+    <div data-content="teams" class="hidden space-y-6">
+      <button id="btn-add-team" class="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors">
+        + Add Team
+      </button>
+      <div id="teams-list" class="space-y-3">
+        <!-- Teams loaded here -->
+      </div>
+    </div>
+
+    <!-- Members Tab -->
+    <div data-content="members" class="hidden space-y-6">
+      <button id="btn-add-member" class="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors">
+        + Add Member
+      </button>
+      <div id="members-list" class="space-y-3">
+        <!-- Members loaded here -->
+      </div>
+    </div>
+  </main>
+
+  <!-- Captain Modal -->
+  <div id="captain-modal" class="modal hidden">
+    <div class="modal-backdrop" onclick="document.getElementById('captain-modal').classList.add('hidden')"></div>
+    <div class="modal-content">
+      <div class="bg-gradient-to-r from-cyan-600 to-blue-600 text-white p-6 flex justify-between items-center">
+        <h2 class="text-xl font-bold">Add / Edit Captain</h2>
+        <button onclick="document.getElementById('captain-modal').classList.add('hidden')" class="text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <form class="p-6 space-y-4" onsubmit="return false;">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Captain Name</label>
+          <input type="text" id="captain-name" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="John Doe">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Email</label>
+          <input type="email" id="captain-email" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="captain@example.com">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Assign Team</label>
+          <select id="captain-team" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            <option value="">Select Team</option>
+          </select>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="button" id="btn-save-captain" class="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors">
+            Save
+          </button>
+          <button type="button" id="btn-cancel-captain" class="flex-1 px-4 py-2 bg-slate-300 hover:bg-slate-400 text-slate-900 rounded-lg font-medium transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Team Modal -->
+  <div id="team-modal" class="modal hidden">
+    <div class="modal-backdrop" onclick="document.getElementById('team-modal').classList.add('hidden')"></div>
+    <div class="modal-content">
+      <div class="bg-gradient-to-r from-cyan-600 to-blue-600 text-white p-6 flex justify-between items-center">
+        <h2 class="text-xl font-bold">Add / Edit Team</h2>
+        <button onclick="document.getElementById('team-modal').classList.add('hidden')" class="text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <form class="p-6 space-y-4" onsubmit="return false;">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Team Name</label>
+          <input type="text" id="team-name" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Team Alpha">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Assign Captain</label>
+          <select id="team-captain" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            <option value="">Select Captain</option>
+          </select>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="button" id="btn-save-team" class="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors">
+            Save
+          </button>
+          <button type="button" id="btn-cancel-team" class="flex-1 px-4 py-2 bg-slate-300 hover:bg-slate-400 text-slate-900 rounded-lg font-medium transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Member Modal -->
+  <div id="member-modal" class="modal hidden">
+    <div class="modal-backdrop" onclick="document.getElementById('member-modal').classList.add('hidden')"></div>
+    <div class="modal-content">
+      <div class="bg-gradient-to-r from-cyan-600 to-blue-600 text-white p-6 flex justify-between items-center">
+        <h2 class="text-xl font-bold">Add / Edit Member</h2>
+        <button onclick="document.getElementById('member-modal').classList.add('hidden')" class="text-white">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <form class="p-6 space-y-4" onsubmit="return false;">
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Member Name</label>
+          <input type="text" id="member-name" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500" placeholder="Jane Doe">
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Assign Team</label>
+          <select id="member-team" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            <option value="">Select Team</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-semibold text-slate-700 mb-2">Status</label>
+          <select id="member-status" class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500">
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+          <button type="button" id="btn-save-member" class="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors">
+            Save
+          </button>
+          <button type="button" id="btn-cancel-member" class="flex-1 px-4 py-2 bg-slate-300 hover:bg-slate-400 text-slate-900 rounded-lg font-medium transition-colors">
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initManageData } from '../src/views/admin/manage-data.js';
+    
+    initManageData();
+  </script>
+</body>
+</html>

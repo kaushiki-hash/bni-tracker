@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - BNI Attendance Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    @keyframes slide-in {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes slide-out {
+      from {
+        opacity: 1;
+        transform: translateX(0);
+      }
+      to {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+    }
+
+    .animate-slide-in {
+      animation: slide-in 0.3s ease-out;
+    }
+
+    .animate-spin {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    tbody tr:hover {
+      background-color: #f8fafc;
+    }
+
+    .stat-card {
+      transition: all 0.3s ease;
+    }
+
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    input[type="date"],
+    select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 28px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50">
+  <!-- Navbar -->
+  <nav class="bg-white border-b border-slate-200 sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="bg-gradient-to-br from-cyan-500 to-blue-600 p-2 rounded-lg">
+          <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-xl font-bold text-slate-900">Admin Dashboard</h1>
+          <p class="text-sm text-slate-600">BNI Attendance Tracker</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-4">
+        <div class="text-right">
+          <p class="text-sm font-medium text-slate-900">Welcome, <span id="admin-name">Admin</span></p>
+          <p class="text-xs text-slate-600">Logged in as Administrator</p>
+        </div>
+        <button id="btn-logout" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors">
+          Logout
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div id="stats-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
+        <!-- Stats loaded dynamically -->
+      </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 p-6 mb-8">
+      <h2 class="text-lg font-bold text-slate-900 mb-4">Filter Records</h2>
+      
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <!-- Date Picker -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Meeting Date</label>
+          <input
+            type="date"
+            id="filter-date"
+            class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          >
+        </div>
+
+        <!-- Captain Dropdown -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Captain</label>
+          <select
+            id="filter-captain"
+            class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          >
+            <option value="">All Captains</option>
+          </select>
+        </div>
+
+        <!-- Team Dropdown -->
+        <div>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Team</label>
+          <select
+            id="filter-team"
+            class="w-full px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cyan-500"
+          >
+            <option value="">All Teams</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap gap-3">
+        <button id="btn-apply-filters" class="px-6 py-2 bg-cyan-600 hover:bg-cyan-700 text-white rounded-lg font-medium transition-colors">
+          Apply Filters
+        </button>
+        <button id="btn-reset-filters" class="px-6 py-2 bg-slate-300 hover:bg-slate-400 text-slate-900 rounded-lg font-medium transition-colors">
+          Reset Filters
+        </button>
+      </div>
+    </div>
+
+    <!-- Export Buttons -->
+    <div class="mb-6">
+      <div id="export-buttons-container">
+        <!-- Export buttons loaded dynamically -->
+      </div>
+    </div>
+
+    <!-- Data Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      <div class="overflow-x-auto">
+        <table>
+          <thead class="bg-gradient-to-r from-cyan-600 to-blue-600 text-white">
+            <tr>
+              <th class="px-6 py-3 text-left text-sm font-semibold">#</th>
+              <th class="px-6 py-3 text-left text-sm font-semibold">Member Name</th>
+              <th class="px-6 py-3 text-left text-sm font-semibold">Team</th>
+              <th class="px-6 py-3 text-left text-sm font-semibold">Captain</th>
+              <th class="px-6 py-3 text-left text-sm font-semibold">Status</th>
+              <th class="px-6 py-3 text-left text-sm font-semibold">Reason</th>
+              <th class="px-6 py-3 text-left text-sm font-semibold">Prior Intimation</th>
+              <th class="px-6 py-3 text-left text-sm font-semibold">Date</th>
+            </tr>
+          </thead>
+          <tbody id="attendance-tbody">
+            <!-- Table rows loaded dynamically -->
+          </tbody>
+        </table>
+      </div>
+      
+      <div id="table-container"></div>
+    </div>
+
+    <!-- Management Links -->
+    <div class="mt-8 p-6 bg-blue-50 rounded-lg border border-blue-200">
+      <h3 class="text-lg font-bold text-slate-900 mb-3">Master Data Management</h3>
+      <p class="text-sm text-slate-600 mb-4">Manage captains, teams, and members:</p>
+      <a href="/manage-data.html" class="inline-block px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
+        Go to Manage Data →
+      </a>
+    </div>
+  </main>
+
+  <script type="module">
+    import { initAdminDashboard } from '../src/views/admin/dashboard.js';
+    import { createExportButtonsHTML, exportToExcel, exportToPDF, shareViaWhatsApp } from '../src/components/ExportButton.js';
+
+    // Initialize dashboard
+    initAdminDashboard();
+
+    // Create stat cards HTML
+    window.addEventListener('load', () => {
+      const statsContainer = document.getElementById('stats-container');
+      const html = `
+        <div class="stat-card bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-slate-600 font-medium">Total Teams</p>
+              <p class="text-3xl font-bold text-slate-900 mt-2" id="total-teams">0</p>
+            </div>
+            <div class="bg-blue-100 p-3 rounded-lg">
+              <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.856-1.487M15 10h.01M11 10h.01M7 10h.01M6 20a6 6 0 1112 0v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2z"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-slate-600 font-medium">Total Members</p>
+              <p class="text-3xl font-bold text-slate-900 mt-2" id="total-members">0</p>
+            </div>
+            <div class="bg-green-100 p-3 rounded-lg">
+              <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3.604c-.432 0-.734-.446-.504-.901l2.049-5.147a4 4 0 015.698-.707c1.562 1.562 2.873 1.562 5.698.707a4 4 0 015.698.707l2.049 5.147c.23.455-.072.901-.504.901H15z"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-slate-600 font-medium">Attendance %</p>
+              <p class="text-3xl font-bold text-slate-900 mt-2" id="attendance-percentage">0%</p>
+            </div>
+            <div class="bg-cyan-100 p-3 rounded-lg">
+              <svg class="w-8 h-8 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="stat-card bg-white p-6 rounded-lg shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-slate-600 font-medium">Total Absent</p>
+              <p class="text-3xl font-bold text-slate-900 mt-2" id="total-absent">0</p>
+            </div>
+            <div class="bg-red-100 p-3 rounded-lg">
+              <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </div>
+          </div>
+        </div>
+      `;
+      statsContainer.innerHTML = html;
+    });
+  </script>
+</body>
+</html>
