@@ -1,8 +1,8 @@
-// src/db/firebase-config.js
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore"; 
 import { getAuth } from "firebase/auth";
 
+// These keys are from  'bniattendance-96205' project
 const firebaseConfig = {
   apiKey: "AIzaSyDINqAKeeoVU8KRhvYc_c9PMkYCkR07Z1I",
   authDomain: "bniattendance-96205.firebaseapp.com",
@@ -16,6 +16,6 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-//  can use them in code
+//  These allow  other files to talk to the DB and Login system
 export const db = getFirestore(app);
 export const auth = getAuth(app);
