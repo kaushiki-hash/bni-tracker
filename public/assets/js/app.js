@@ -1,11 +1,12 @@
+// 1. Imports FIRST
+import { db } from './db/firebase-config.js';
+import { collection, addDoc } from "firebase/firestore";
 
-// 1.TO  Make the toggle function global so the HTML can "see" it
+// 2. Global Toggle Function
 window.toggleAbsenceFields = (memberId) => {
     const statusCheckbox = document.getElementById(`status-${memberId}`);
     const fields = document.getElementById(`absence-fields-${memberId}`);
     
-
-    // If checked (Present), hide fields. If unchecked (Absent), show fields.
     if (statusCheckbox.checked) {
         fields.classList.add('hidden');
     } else {
@@ -13,27 +14,14 @@ window.toggleAbsenceFields = (memberId) => {
     }
 };
 
-// 2. Initialize the page
-document.addEventListener('DOMContentLoaded', () => {
-    console.log("BNI Tracker App Initialized");
-    
-    // Logic to show current date in the header
-    const dateEl = document.getElementById('current-date');
-    if (dateEl) {
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        dateEl.innerText = new Date().toLocaleDateString(undefined, options);
-    }
-});
-import { db } from './db/firebase-config.js';
-import { collection, addDoc } from "firebase/firestore";
-
+// 3. Database Test Function
 const testAddMember = async () => {
     try {
         const docRef = await addDoc(collection(db, "members"), {
             memberName: "Test Member 1",
             teamId: "Team - A",
             status: "active",
-            captainId: "kn5AecqvSpBM5lWubJue" // Using the ID from your screenshot
+            captainId: "kn5AecqvSpBM5lWubJue" 
         });
         console.log("✅ Success! Member added with ID: ", docRef.id);
     } catch (e) {
@@ -41,5 +29,16 @@ const testAddMember = async () => {
     }
 };
 
-// Uncomment the line below to run the test once!
- testAddMember();
+// 4. Page Initialization
+document.addEventListener('DOMContentLoaded', () => {
+    console.log("BNI Tracker App Initialized");
+    
+    const dateEl = document.getElementById('current-date');
+    if (dateEl) {
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        dateEl.innerText = new Date().toLocaleDateString(undefined, options);
+    }
+
+    // Run test once
+    testAddMember(); 
+});
