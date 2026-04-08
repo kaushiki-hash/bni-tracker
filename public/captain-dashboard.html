@@ -1,3 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captain Dashboard - BNI Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .hidden { display: none; }
+        /* Custom gold accent to match the BNI branding */
+        .accent-gold { color: #d4af37; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+    <section id="captain-view" class="p-4 max-w-md mx-auto">
+        <header class="mb-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-slate-900">Mark Attendance</h1>
+                <p class="text-slate-500 text-sm" id="current-date">Loading date...</p>
+            </div>
+            <div class="text-right">
+                <span class="text-xs font-semibold text-cyan-600 bg-cyan-50 px-2 py-1 rounded">Captain Access</span>
+            </div>
+        </header>
+
+        <div id="member-list-container" class="space-y-4">
+            <div class="text-center py-10 text-slate-400">
+                Fetching your team members...
+            </div>
+        </div>
+
+        <button id="save-attendance-btn" class="w-full mt-8 bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-cyan-200 transition-all active:scale-95">
+            Save Team Attendance
+        </button>
+        
+        <p class="text-center text-slate-400 text-xs mt-4">
+            Powered by Firebase Batch Write Optimization
+        </p>
+    </section>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
 <section id="captain-view" class="p-4 max-w-md mx-auto">
     <header class="mb-6">
         <h1 class="text-2xl font-bold text-slate-900">Mark Attendance</h1>
