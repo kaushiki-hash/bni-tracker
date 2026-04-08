@@ -57,52 +57,58 @@
     </section>
   </div>
 
-  <script type="module">
-    import { adminLogin } from '../src/auth/auth.js';
+ <script type="module">
+  import { adminLogin } from '../src/auth/auth.js';
 
-    const form = document.getElementById('login-form');
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const submitBtn = document.getElementById('submit-button');
-    const buttonText = document.getElementById('button-text');
-    const buttonSpinner = document.getElementById('button-spinner');
-    const messageBox = document.getElementById('message-box');
+  const form = document.getElementById('login-form');
+  const emailInput = document.getElementById('email');
+  const passwordInput = document.getElementById('password');
+  const submitBtn = document.getElementById('submit-button');
+  const buttonText = document.getElementById('button-text');
+  const buttonSpinner = document.getElementById('button-spinner');
+  const messageBox = document.getElementById('message-box');
 
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
-      
-      // Show loading
-      submitBtn.disabled = true;
-      buttonText.classList.add('hidden');
-      buttonSpinner.classList.remove('hidden');
-      messageBox.classList.add('hidden');
-      
-      // Call adminLogin from auth.js
-      const result = await adminLogin(email, password);
-      
-      // Hide loading
-      submitBtn.disabled = false;
-      buttonText.classList.remove('hidden');
-      buttonSpinner.classList.add('hidden');
-      
-   if (result.success) {
-        // Dynamic redirection based on role
-        if (result.user.role === 'admin') {
-          window.location.href = 'admin-dashboard.html';
-        } else if (result.user.role === 'captain') {
-          // Store teamId so your dashboard knows which members to load
-          localStorage.setItem("teamId", result.user.teamId || ""); 
-          window.location.href = 'captain-dashboard.html';
-        }
-      } else {
-        // Show error
-        messageBox.textContent = result.error;
-        messageBox.classList.remove('hidden');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    
+    // UI Feedback: Start Loading
+    submitBtn.disabled = true;
+    buttonText.classList.add('hidden');
+    buttonSpinner.classList.remove('hidden');
+    messageBox.classList.add('hidden');
+    
+    // Call the Auth backend
+    const result = await adminLogin(email, password);
+    
+    // UI Feedback: Stop Loading
+    submitBtn.disabled = false;
+    buttonText.classList.remove('hidden');
+    buttonSpinner.classList.add('hidden');
+    
+    if (result.success) {
+      // Store user role for global use
+      localStorage.setItem("userRole", result.user.role);
+
+      // Routing Logic
+      if (result.user.role === 'admin') {
+        window.location.href = 'admin-dashboard.html';
+      } 
+      else if (result.user.role === 'captain') {
+        localStorage.setItem("teamId", result.user.teamId || ""); 
+        window.location.href = 'captain-dashboard.html';
+      } 
+      else {
+        window.location.href = 'home.html';
       }
-    }); // This closes the event listener
-  </script>
+    } else {
+      // Show error to the user
+      messageBox.textContent = result.error || "Login failed. Please try again.";
+      messageBox.classList.remove('hidden');
+    }
+  }); 
+</script>
 </body>
 </html>
