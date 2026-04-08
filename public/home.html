@@ -3,45 +3,86 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BNI Tracker - Main Hub</title>
+    <title>BNI Tracker - Selection Hub</title>
+    <link rel="stylesheet" href="login.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Blending your login.css logic with Tailwind for the cards */
+        .portal-card {
+            transition: all 0.3s ease;
+            border: 1px solid #e2e8f0;
+        }
+        .portal-card:hover {
+            transform: translateY(-5px);
+            border-color: #cf202e; /* BNI Red */
+            box-shadow: 0 10px 25px -5px rgba(207, 32, 46, 0.1);
+        }
+        .bni-red-bg { background-color: #cf202e; }
+        .bni-red-text { color: #cf202e; }
+    </style>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col items-center justify-center p-6">
+<body>
+  <div class="page-shell">
+    <section class="hero-panel">
+      <div class="brand-box">
+        <span class="brand-mark">BNI</span>
+      </div>
+      <div class="hero-copy">
+        <h1 id="welcome-message">Welcome</h1>
+        <p>Your identity has been verified. Please select the portal you wish to access for this session.</p>
+      </div>
+    </section>
 
-    <div class="max-w-4xl w-full text-center mb-12">
-        <h1 class="text-4xl font-extrabold text-slate-900 mb-2">BNI Attendance Tracker</h1>
-        <p class="text-slate-500 text-lg">Welcome back. Select your portal to continue.</p>
-    </div>
-
-    <div class="grid md:grid-cols-2 gap-8 max-w-4xl w-full">
+    <section class="login-panel flex flex-col justify-center px-8">
+      <div class="max-w-md w-full mx-auto space-y-6">
         
-        <a href="captain-dashboard.html" class="group bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-cyan-500 hover:shadow-xl transition-all duration-300">
-            <div class="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center mb-6 group-hover:bg-cyan-600 transition-colors">
-                <svg class="w-8 h-8 text-cyan-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="mb-8">
+            <p class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-1">Access Control</p>
+            <h2 class="text-3xl font-extrabold text-slate-900">Selection Hub</h2>
+        </div>
+
+        <a href="captain-dashboard.html" class="portal-card block bg-white p-6 rounded-2xl group">
+          <div class="flex items-center gap-5">
+            <div class="w-12 h-12 bni-red-bg rounded-xl flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
                 </svg>
             </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">Captain Portal</h2>
-            <p class="text-slate-500">Mark daily attendance, manage team toggles, and submit batch records.</p>
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 group-hover:bni-red-text transition-colors">Captain Portal</h3>
+                <p class="text-sm text-slate-500 mt-1">Mark weekly attendance and manage team absence reasons.</p>
+            </div>
+          </div>
         </a>
 
-        <a href="admin-dashboard.html" class="group bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-500 hover:shadow-xl transition-all duration-300">
-            <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 transition-colors">
-                <svg class="w-8 h-8 text-indigo-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <a href="admin-dashboard.html" class="portal-card block bg-white p-6 rounded-2xl group">
+          <div class="flex items-center gap-5">
+            <div class="w-12 h-12 bg-slate-900 rounded-xl flex items-center justify-center shrink-0">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                 </svg>
             </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">Admin Portal</h2>
-            <p class="text-slate-500">View analytics, manage users/roles, and generate master reports.</p>
+            <div>
+                <h3 class="text-xl font-bold text-slate-800 group-hover:bni-red-text transition-colors">Admin Portal</h3>
+                <p class="text-sm text-slate-500 mt-1">Full chapter visibility, master reporting, and data management.</p>
+            </div>
+          </div>
         </a>
 
-    </div>
+        <div class="pt-8 border-t border-slate-100 flex justify-between items-center">
+            <a href="login.html" class="text-sm font-bold bni-red-text hover:underline">Sign Out</a>
+            <span class="text-xs text-slate-300 font-medium">BNI MC Tracker v1.0</span>
+        </div>
+      </div>
+    </section>
+  </div>
 
-    <div class="mt-12 flex space-x-6 text-sm font-medium">
-        <a href="manage-data.html" class="text-slate-400 hover:text-cyan-600 transition-colors">Manage Data</a>
-        <span class="text-slate-200">|</span>
-        <a href="login.html" class="text-slate-400 hover:text-red-500 transition-colors">Sign Out</a>
-    </div>
-
+  <script>
+      // Simple personalization using the data we saved in login.html
+      const userName = localStorage.getItem("userName");
+      if (userName) {
+          document.getElementById("welcome-message").textContent = `Welcome, ${userName.split(' ')[0]}`;
+      }
+  </script>
 </body>
 </html>
