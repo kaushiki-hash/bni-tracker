@@ -96,14 +96,15 @@ const loadAttendanceTable = async () => {
  */
 const renderAttendanceTable = (data) => {
   const tbody = document.getElementById('attendance-tbody');
-  
+  if (!tbody) return;
+
   if (data.length === 0) {
     tbody.innerHTML = `
-      <tr>
-        <td colspan="7" class="px-6 py-8 text-center text-slate-500 text-sm">
-          <div class="flex flex-col items-center justify-center gap-2">
-            <span class="text-3xl">📭</span>
-            <span>No records found</span>
+      <tr class="table-row">
+        <td colspan="8" class="table-cell table-empty">
+          <div class="empty-state">
+            <span class="empty-icon">📭</span>
+            <p>No records found</p>
           </div>
         </td>
       </tr>
@@ -112,31 +113,21 @@ const renderAttendanceTable = (data) => {
   }
 
   tbody.innerHTML = data.map((record, index) => `
-    <tr class="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-      <td class="px-6 py-3 text-sm text-slate-900 font-medium">${index + 1}</td>
-      <td class="px-6 py-3 text-sm text-slate-900">${record.memberName}</td>
-      <td class="px-6 py-3 text-sm text-slate-600">${record.teamName}</td>
-      <td class="px-6 py-3 text-sm text-slate-600">${record.captainName}</td>
-      <td class="px-6 py-3 text-sm">
-        <span class="px-3 py-1 rounded-full text-xs font-semibold ${
-          record.presentStatus === 'Yes' 
-            ? 'bg-green-100 text-green-700' 
-            : 'bg-red-100 text-red-700'
-        }">
-          ${record.presentStatus === 'Yes' ? '✅ Present' : '❌ Absent'}
+    <tr class="table-row">
+      <td class="table-cell table-index">${index + 1}</td>
+      <td class="table-cell">${record.memberName}</td>
+      <td class="table-cell">${record.teamName}</td>
+      <td class="table-cell">${record.captainName}</td>
+      <td class="table-cell">
+        <span class="status-pill ${record.presentStatus === 'Yes' ? 'status-pill--present' : 'status-pill--absent'}">
+          ${record.presentStatus === 'Yes' ? 'Present' : 'Absent'}
         </span>
       </td>
-      <td class="px-6 py-3 text-sm text-slate-600">${record.absenceReason}</td>
-      <td class="px-6 py-3 text-sm">
-        <span class="px-2 py-1 text-xs font-semibold ${
-          record.priorIntimation === 'Yes'
-            ? 'bg-blue-100 text-blue-700'
-            : 'bg-gray-100 text-gray-700'
-        }">
-          ${record.priorIntimation}
-        </span>
+      <td class="table-cell">${record.absenceReason || '-'}</td>
+      <td class="table-cell">
+        <span class="badge ${record.priorIntimation === 'Yes' ? 'badge--yes' : 'badge--no'}">${record.priorIntimation}</span>
       </td>
-      <td class="px-6 py-3 text-sm text-slate-600">${formatDate(record.meetingDate, 'DD/MM/YYYY')}</td>
+      <td class="table-cell">${formatDate(record.meetingDate, 'DD/MM/YYYY')}</td>
     </tr>
   `).join('');
 };
@@ -232,37 +223,57 @@ const updateExportButtons = () => {
  * Setup event listeners
  */
 const setupEventListeners = () => {
-  document.getElementById('btn-apply-filters').addEventListener('click', applyFilters);
-  document.getElementById('btn-reset-filters').addEventListener('click', resetFilters);
-  document.getElementById('btn-logout').addEventListener('click', handleLogout);
+  const applyButton = document.getElementById('btn-apply-filters');
+  const resetButton = document.getElementById('btn-reset-filters');
+  const logoutButton = document.getElementById('btn-logout');
+  const excelButton = document.getElementById('btn-export-excel');
+  const pdfButton = document.getElementById('btn-export-pdf');
+  const whatsappButton = document.getElementById('btn-share-whatsapp');
 
-  // Export handlers
-  window.exportToExcelHandler = () => {
-    if (filteredAttendanceData.length === 0) {
-      showNotification('No data to export', 'warning');
-      return;
-    }
-    exportToExcel(filteredAttendanceData, 'attendance_report');
-    showNotification('Excel file downloaded', 'success');
-  };
+  if (applyButton) {
+    applyButton.addEventListener('click', applyFilters);
+  }
 
-  window.exportToPDFHandler = () => {
-    if (filteredAttendanceData.length === 0) {
-      showNotification('No data to export', 'warning');
-      return;
-    }
-    exportToPDF(filteredAttendanceData, 'attendance_report', 'BNI Attendance Report');
-    showNotification('PDF file downloaded', 'success');
-  };
+  if (resetButton) {
+    resetButton.addEventListener('click', resetFilters);
+  }
 
-  window.shareViaWhatsAppHandler = () => {
-    if (filteredAttendanceData.length === 0) {
-      showNotification('No data to share', 'warning');
-      return;
-    }
-    shareViaWhatsApp(filteredAttendanceData, 'attendance');
-    showNotification('Opening WhatsApp...', 'info');
-  };
+  if (logoutButton) {
+    logoutButton.addEventListener('click', handleLogout);
+  }
+
+  if (excelButton) {
+    excelButton.addEventListener('click', () => {
+      if (filteredAttendanceData.length === 0) {
+        showNotification('No data to export', 'warning');
+        return;
+      }
+      exportToExcel(filteredAttendanceData, 'attendance_report');
+      showNotification('Excel file downloaded', 'success');
+    });
+  }
+
+  if (pdfButton) {
+    pdfButton.addEventListener('click', () => {
+      if (filteredAttendanceData.length === 0) {
+        showNotification('No data to export', 'warning');
+        return;
+      }
+      exportToPDF(filteredAttendanceData, 'attendance_report', 'BNI Attendance Report');
+      showNotification('PDF file downloaded', 'success');
+    });
+  }
+
+  if (whatsappButton) {
+    whatsappButton.addEventListener('click', () => {
+      if (filteredAttendanceData.length === 0) {
+        showNotification('No data to share', 'warning');
+        return;
+      }
+      shareViaWhatsApp(filteredAttendanceData, 'attendance');
+      showNotification('Opening WhatsApp...', 'info');
+    });
+  }
 };
 
 /**
@@ -287,15 +298,9 @@ const showLoading = (containerId, loading) => {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  if (loading) {
-    container.innerHTML = `
-      <div class="flex items-center justify-center py-8">
-        <div class="animate-spin">
-          <div class="w-8 h-8 border-4 border-slate-300 border-t-cyan-600 rounded-full"></div>
-        </div>
-      </div>
-    `;
-  }
+  container.innerHTML = loading
+    ? `<div class="loading-state"><div class="spinner"></div></div>`
+    : '';
 };
 
 /**
@@ -303,16 +308,7 @@ const showLoading = (containerId, loading) => {
  */
 const showNotification = (message, type = 'info') => {
   const notification = document.createElement('div');
-  const bgColor = type === 'success' ? 'bg-green-100 border-green-300' : 
-                  type === 'error' ? 'bg-red-100 border-red-300' :
-                  type === 'warning' ? 'bg-yellow-100 border-yellow-300' :
-                  'bg-blue-100 border-blue-300';
-  const textColor = type === 'success' ? 'text-green-700' : 
-                    type === 'error' ? 'text-red-700' :
-                    type === 'warning' ? 'text-yellow-700' :
-                    'text-blue-700';
-
-  notification.className = `fixed top-4 right-4 px-4 py-3 rounded-lg border ${bgColor} ${textColor} shadow-lg animate-slide-in z-50`;
+  notification.className = `notification notification--${type}`;
   notification.textContent = message;
 
   document.body.appendChild(notification);

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BNI Attendance Tracker - Login</title>
+  <link rel="stylesheet" href="login.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <section class="hero-panel">
+      <div class="brand-box">
+        <span class="brand-mark">BNI</span>
+      </div>
+      <div class="hero-copy">
+        <h1>Welcome Back</h1>
+        <p>Sign in to manage attendance, teams, and members for your BNI chapter.</p>
+      </div>
+    </section>
+
+    <section class="login-panel">
+      <div class="login-card">
+        <div class="login-heading">
+          <div>
+            <p class="eyebrow">BNI Attendance Tracker</p>
+            <h2>Sign in to your account</h2>
+          </div>
+        </div>
+
+        <div id="message-box" class="message hidden" role="alert"></div>
+
+        <form id="login-form" class="form-grid" autocomplete="off">
+          <label class="input-group">
+            <span>Email address</span>
+            <input id="email" name="email" type="email" placeholder="" required />
+          </label>
+
+          <label class="input-group">
+            <span>Password</span>
+            <input id="password" name="password" type="password" placeholder="" required minlength="6" />
+          </label>
+
+          <div class="forgot-row">
+            <button id="forgot-password" type="button" class="link-button">Forgot password?</button>
+          </div>
+
+          <button id="submit-button" type="submit" class="primary-button">
+            <span id="button-text">Sign In</span>
+            <span id="button-spinner" class="spinner hidden" aria-hidden="true"></span>
+          </button>
+        </form>
+      </div>
+
+      <div class="support-panel">
+        <p class="support-copy">Need help? Contact your chapter administrator if you do not have an account.</p>
+      </div>
+    </section>
+  </div>
+
+  <script type="module">
+    import { adminLogin } from '../src/auth/auth.js';
+
+    const form = document.getElementById('login-form');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const submitBtn = document.getElementById('submit-button');
+    const buttonText = document.getElementById('button-text');
+    const buttonSpinner = document.getElementById('button-spinner');
+    const messageBox = document.getElementById('message-box');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      
+      // Show loading
+      submitBtn.disabled = true;
+      buttonText.classList.add('hidden');
+      buttonSpinner.classList.remove('hidden');
+      messageBox.classList.add('hidden');
+      
+      // Call adminLogin from auth.js
+      const result = await adminLogin(email, password);
+      
+      // Hide loading
+      submitBtn.disabled = false;
+      buttonText.classList.remove('hidden');
+      buttonSpinner.classList.add('hidden');
+      
+      if (result.success) {
+        // Redirect to admin dashboard
+        window.location.href = 'admin-dashboard.html';
+      } else {
+        // Show error
+        messageBox.textContent = result.error;
+        messageBox.classList.remove('hidden');
+      }
+    });
+  </script>
+</body>
+</html>
