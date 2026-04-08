@@ -88,15 +88,21 @@
       buttonText.classList.remove('hidden');
       buttonSpinner.classList.add('hidden');
       
-      if (result.success) {
-        // Redirect to admin dashboard
-        window.location.href = 'admin-dashboard.html';
+   if (result.success) {
+        // Dynamic redirection based on role
+        if (result.user.role === 'admin') {
+          window.location.href = 'admin-dashboard.html';
+        } else if (result.user.role === 'captain') {
+          // Store teamId so your dashboard knows which members to load
+          localStorage.setItem("teamId", result.user.teamId || ""); 
+          window.location.href = 'captain-dashboard.html';
+        }
       } else {
         // Show error
         messageBox.textContent = result.error;
         messageBox.classList.remove('hidden');
       }
-    });
+    }); // This closes the event listener
   </script>
 </body>
 </html>
