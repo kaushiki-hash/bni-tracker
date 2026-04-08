@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BNI Tracker - Main Hub</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center justify-center p-6">
+
+    <div class="max-w-4xl w-full text-center mb-12">
+        <h1 class="text-4xl font-extrabold text-slate-900 mb-2">BNI Attendance Tracker</h1>
+        <p class="text-slate-500 text-lg">Welcome back. Select your portal to continue.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-8 max-w-4xl w-full">
+        
+        <a href="captain-dashboard.html" class="group bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-cyan-500 hover:shadow-xl transition-all duration-300">
+            <div class="w-14 h-14 bg-cyan-100 rounded-xl flex items-center justify-center mb-6 group-hover:bg-cyan-600 transition-colors">
+                <svg class="w-8 h-8 text-cyan-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Captain Portal</h2>
+            <p class="text-slate-500">Mark daily attendance, manage team toggles, and submit batch records.</p>
+        </a>
+
+        <a href="admin-dashboard.html" class="group bg-white p-8 rounded-2xl shadow-sm border border-slate-200 hover:border-indigo-500 hover:shadow-xl transition-all duration-300">
+            <div class="w-14 h-14 bg-indigo-100 rounded-xl flex items-center justify-center mb-6 group-hover:bg-indigo-600 transition-colors">
+                <svg class="w-8 h-8 text-indigo-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Admin Portal</h2>
+            <p class="text-slate-500">View analytics, manage users/roles, and generate master reports.</p>
+        </a>
+
+    </div>
+
+    <div class="mt-12 flex space-x-6 text-sm font-medium">
+        <a href="manage-data.html" class="text-slate-400 hover:text-cyan-600 transition-colors">Manage Data</a>
+        <span class="text-slate-200">|</span>
+        <a href="login.html" class="text-slate-400 hover:text-red-500 transition-colors">Sign Out</a>
+    </div>
+
+</body>
+</html>
