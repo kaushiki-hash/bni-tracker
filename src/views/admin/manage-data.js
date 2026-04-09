@@ -1,586 +1,544 @@
-import { getCurrentUser } from '../../auth/auth.js';
-import {
-  getCaptains,
-  addCaptain,
-  updateCaptain,
-  deactivateCaptain,
-  getTeams,
-  addTeam,
-  updateTeam,
-  getMembers,
-  addMember,
-  updateMember,
-  removeMember
-} from '../../db/admin-service.js';
-import { validateCaptainData, validateTeamData, validateMemberData } from '../../utils/validator.js';
+import { auth, db } from '../../../db/firebase-config.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { getAuth, createUserWithEmailAndPassword, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 
-let currentTab = 'captains';
-let currentUser = null;
+// Configuration for secondary instance to create users without logging out admin
+const firebaseConfig = {
+  apiKey: "AIzaSyDINqAKeeoVU8KRhvYc_c9PMkYCkR07Z1I",
+  authDomain: "bniattendance-96205.firebaseapp.com",
+  projectId: "bniattendance-96205",
+  storageBucket: "bniattendance-96205.firebasestorage.app",
+  messagingSenderId: "250805340036",
+  appId: "1:250805340036:web:0eaf64fcecc66535a27fd1",
+  measurementId: "G-NY8CV4X36R"
+};
 
-/**
- * Initialize manage data page
- */
-export const initManageData = async () => {
-  try {
-    currentUser = await getCurrentUser();
-    if (!currentUser || currentUser.role !== 'admin') {
-      window.location.href = '/admin.html';
+// Initialize secondary app for creating new captains
+const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+const secondaryAuth = getAuth(secondaryApp);
+
+class ManageData {
+  constructor() {
+    this.captains = [];
+    this.teams = [];
+    this.members = [];
+    this.init();
+  }
+
+  async init() {
+    this.bindEvents();
+    this.setupTabs();
+    this.setupModals();
+    this.checkAuth();
+  }
+
+  checkAuth() {
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && docSnap.data().role === 'admin') {
+          await this.loadAllData();
+        } else {
+          window.location.href = './login.html';
+        }
+      } else {
+        window.location.href = './login.html';
+      }
+    });
+  }
+
+  bindEvents() {
+    document.getElementById('captainForm').addEventListener('submit', (e) => this.handleCaptainSubmit(e));
+    document.getElementById('teamForm').addEventListener('submit', (e) => this.handleTeamSubmit(e));
+    document.getElementById('memberForm').addEventListener('submit', (e) => this.handleMemberSubmit(e));
+    
+    // Custom delete modal events
+    document.getElementById('cancelDeleteBtn')?.addEventListener('click', () => this.closeModal(document.getElementById('deleteConfirmModal')));
+  }
+
+  setupTabs() {
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const sections = document.querySelectorAll('.tab-content');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.getAttribute('data-tab');
+
+        tabBtns.forEach(b => {
+          b.className = "tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm text-slate-500 border-transparent hover:text-slate-700 hover:border-slate-300 transition-all duration-200";
+        });
+
+        btn.className = "tab-btn active whitespace-nowrap py-4 px-1 border-b-2 font-bold text-sm text-bni-red border-bni-red transition-all duration-200";
+
+        sections.forEach(s => {
+          s.classList.remove('opacity-100');
+          s.classList.add('hidden', 'opacity-0', 'pointer-events-none');
+        });
+
+        const target = document.getElementById(targetId);
+        target.classList.remove('hidden', 'opacity-0', 'pointer-events-none');
+        target.classList.add('opacity-100');
+      });
+    });
+  }
+
+  setupModals() {
+    const openBtns = document.querySelectorAll('.open-modal');
+    const closeBtns = document.querySelectorAll('.close-modal');
+
+    openBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const modalId = btn.getAttribute('data-modal');
+        const modal = document.getElementById(modalId);
+        modal.classList.remove('hidden');
+        setTimeout(() => modal.querySelector('.modal-anim').classList.add('active'), 10);
+      });
+    });
+
+    closeBtns.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const modal = e.target.closest('.fixed.inset-0');
+        this.closeModal(modal);
+      });
+    });
+  }
+
+  closeModal(modal) {
+    if (!modal) return;
+    const anim = modal.querySelector('.modal-anim');
+    if (anim) anim.classList.remove('active');
+    setTimeout(() => {
+      modal.classList.add('hidden');
+    }, 300);
+  }
+
+  showToast(msg, type = "success") {
+    const container = document.getElementById('toastContainer');
+    if (!container) return alert(msg);
+    const toast = document.createElement('div');
+    toast.className = `px-6 py-4 rounded-xl shadow-2xl font-bold flex items-center transition-all duration-500 transform translate-x-[120%] border ${type === 'success' ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-red-600 text-white border-red-400'
+      }`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => toast.classList.remove('translate-x-[120%]'));
+    setTimeout(() => {
+      toast.classList.add('translate-x-[120%]');
+      setTimeout(() => toast.remove(), 500);
+    }, 3500);
+  }
+
+  showDeleteConfirm(title, message, onConfirm) {
+    const modal = document.getElementById('deleteConfirmModal');
+    const titleEl = document.getElementById('deleteModalTitle');
+    const msgEl = document.getElementById('deleteModalMessage');
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+
+    titleEl.textContent = title;
+    msgEl.textContent = message;
+
+    modal.classList.remove('hidden');
+    setTimeout(() => modal.querySelector('.modal-anim').classList.add('active'), 10);
+
+    // Replace confirm button with a clone to remove old listeners
+    const newConfirmBtn = confirmBtn.cloneNode(true);
+    confirmBtn.parentNode.replaceChild(newConfirmBtn, confirmBtn);
+
+    newConfirmBtn.addEventListener('click', async () => {
+      newConfirmBtn.disabled = true;
+      newConfirmBtn.textContent = 'Deleting...';
+      await onConfirm();
+      this.closeModal(modal);
+      newConfirmBtn.disabled = false;
+      newConfirmBtn.textContent = 'Delete';
+    });
+  }
+
+  async loadAllData() {
+    document.getElementById('pageLoading').classList.remove('hidden');
+    document.getElementById('tabContent').classList.add('hidden');
+
+    try {
+      const [caps, tms, mems] = await Promise.all([
+        getDocs(collection(db, 'captains')),
+        getDocs(collection(db, 'teams')),
+        getDocs(collection(db, 'members'))
+      ]);
+
+      this.captains = caps.docs.map(d => ({ id: d.id, ...d.data() }));
+      this.teams = tms.docs.map(d => ({ id: d.id, ...d.data() }));
+      this.members = mems.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      this.refreshDropdowns();
+      this.renderTables();
+    } catch (err) {
+      console.error(err);
+      this.showToast('Failed to sync master data', 'error');
+    } finally {
+      document.getElementById('pageLoading').classList.add('hidden');
+      document.getElementById('tabContent').classList.remove('hidden');
+    }
+  }
+
+  refreshDropdowns() {
+    const capTeamSelect = document.getElementById('capTeam');
+    const memTeamSelect = document.getElementById('memTeam');
+    if (capTeamSelect) capTeamSelect.innerHTML = '<option value="">Unassigned</option>';
+    if (memTeamSelect) memTeamSelect.innerHTML = '<option value="">Unassigned</option>';
+
+    this.teams.forEach(t => {
+      const opt = `<option value="${t.id}">${t.teamName}</option>`;
+      if (capTeamSelect) capTeamSelect.insertAdjacentHTML('beforeend', opt);
+      if (memTeamSelect) memTeamSelect.insertAdjacentHTML('beforeend', opt);
+    });
+
+    const teamCapSelect = document.getElementById('teamCaptain');
+    if (teamCapSelect) {
+      teamCapSelect.innerHTML = '<option value="">Unassigned</option>';
+      this.captains.forEach(c => {
+        teamCapSelect.insertAdjacentHTML('beforeend', `<option value="${c.id}">${c.name}</option>`);
+      });
+    }
+  }
+
+  renderTables() {
+    this.renderCaptains();
+    this.renderTeams();
+    this.renderMembers();
+  }
+
+  getTeamName(id) {
+    const t = this.teams.find(t => t.id === id);
+    return t ? t.teamName : '-';
+  }
+
+  getCaptainName(id) {
+    const c = this.captains.find(c => c.id === id);
+    return c ? c.name : '-';
+  }
+
+  // ============== CAPTAINS ==============
+  renderCaptains() {
+    const tbody = document.getElementById('captainsTbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (this.captains.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-slate-500 font-medium">No captains designated yet.</td></tr>`;
       return;
     }
 
-    setupTabNavigation();
-    setupEventListeners();
-    await switchTab('captains');
+    this.captains.forEach(cap => {
+      const badge = cap.status === 'active'
+        ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">Active</span>`
+        : `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500">Inactive</span>`;
 
-    console.log('Manage data page initialized');
-  } catch (error) {
-    console.error('Error initializing:', error);
-    showNotification('Error loading page', 'error');
-  }
-};
-
-/**
- * Setup tab navigation
- */
-const setupTabNavigation = () => {
-  // Tab buttons
-  document.querySelectorAll('[data-tab]').forEach(tab => {
-    tab.addEventListener('click', () => {
-      switchTab(tab.dataset.tab);
+      const tr = document.createElement('tr');
+      tr.className = "hover:bg-slate-50 transition-colors group";
+      tr.innerHTML = `
+        <td class="px-8 py-5 text-sm font-extrabold text-slate-800">${cap.name}</td>
+        <td class="px-8 py-5 text-sm font-medium text-slate-500">${cap.email}</td>
+        <td class="px-8 py-5 text-sm font-medium text-slate-600">${this.getTeamName(cap.teamId)}</td>
+        <td class="px-8 py-5">${badge}</td>
+        <td class="px-8 py-5 text-right text-sm space-x-3">
+          <button class="font-bold text-blue-500 hover:text-blue-700" onclick="window.manageData.editCaptain('${cap.id}')">Edit</button>
+          <button class="font-bold text-red-500 hover:text-red-700" onclick="window.manageData.deleteCaptain('${cap.id}', '${cap.name}')">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
     });
-  });
+  }
 
-  // Add buttons
-  document.getElementById('btn-add-captain').addEventListener('click', () => openCaptainModal());
-  document.getElementById('btn-add-team').addEventListener('click', () => openTeamModal());
-  document.getElementById('btn-add-member').addEventListener('click', () => openMemberModal());
+  async handleCaptainSubmit(e) {
+    e.preventDefault();
+    const saveBtn = e.target.querySelector('button[type="submit"]');
+    const id = document.getElementById('capId').value;
+    const password = document.getElementById('capPassword').value;
+    const email = document.getElementById('capEmail').value;
+    const name = document.getElementById('capName').value;
+    const teamId = document.getElementById('capTeam').value;
+    const status = document.getElementById('capStatus').value;
 
-  // Save buttons
-  document.getElementById('btn-save-captain').addEventListener('click', saveCaptain);
-  document.getElementById('btn-save-team').addEventListener('click', saveTeam);
-  document.getElementById('btn-save-member').addEventListener('click', saveMember);
+    const originalBtnText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
 
-  // Cancel buttons
-  document.getElementById('btn-cancel-captain').addEventListener('click', closeCaptainModal);
-  document.getElementById('btn-cancel-team').addEventListener('click', closeTeamModal);
-  document.getElementById('btn-cancel-member').addEventListener('click', closeMemberModal);
+    const data = {
+      name: name,
+      email: email,
+      teamId: teamId,
+      status: status,
+      role: 'captain'
+    };
 
-  // Modal close buttons
-  document.querySelectorAll('.modal-close').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const modal = e.target.closest('.modal');
-      modal.classList.add('hidden');
+    try {
+      if (id) {
+        // Update existing captain
+        await updateDoc(doc(db, 'captains', id), data);
+        await updateDoc(doc(db, 'users', id), { name, email, teamId, status, role: 'captain' });
+        this.showToast('Captain updated successfully!');
+      } else {
+        // New captain - create Auth user then Firestore doc
+        if (!password || password.length < 6) {
+          throw new Error('Password must be at least 6 characters');
+        }
+
+        // Use secondaryAuth to avoid logging out admin
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+        const uid = userCredential.user.uid;
+
+        // Use the generated UID as document ID
+        await setDoc(doc(db, 'captains', uid), data);
+        await setDoc(doc(db, 'users', uid), data);
+        
+        this.showToast('Captain created successfully! They can now login.');
+        
+        // Clear secondary auth to prevent state issues
+        await secondaryAuth.signOut();
+      }
+      this.closeModal(document.getElementById('captainModal'));
+      await this.loadAllData();
+    } catch (err) {
+      console.error(err);
+      let msg = err.message || 'Error syncing captain data';
+      if (err.code === 'auth/email-already-in-use') msg = 'Email already in use';
+      if (err.code === 'auth/weak-password') msg = 'Password too weak';
+      this.showToast(msg, 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalBtnText;
+    }
+  }
+
+  editCaptain(id) {
+    const cap = this.captains.find(c => c.id === id);
+    if(!cap) return;
+    
+    document.getElementById('capId').value = cap.id;
+    document.getElementById('capName').value = cap.name || '';
+    document.getElementById('capEmail').value = cap.email || '';
+    document.getElementById('capTeam').value = cap.teamId || '';
+    document.getElementById('capStatus').value = cap.status || 'active';
+    
+    const passInput = document.getElementById('capPassword');
+    if (passInput) {
+      passInput.value = '';
+      passInput.placeholder = 'Leave blank to keep current password';
+    }
+    
+    document.getElementById('capModalTitle').textContent = 'Edit Captain';
+    const m = document.getElementById('captainModal');
+    m.classList.remove('hidden');
+    setTimeout(() => m.querySelector('.modal-anim').classList.add('active'), 10);
+  }
+
+  deleteCaptain(id, name) {
+    this.showDeleteConfirm(
+      'Delete Captain',
+      `Are you sure you want to delete ${name}? This will remove their authentication and record forever.`,
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'captains', id));
+          await deleteDoc(doc(db, 'users', id));
+          this.showToast('Captain deleted successfully');
+          await this.loadAllData();
+        } catch (err) {
+          console.error(err);
+          this.showToast('Failed to delete captain', 'error');
+        }
+      }
+    );
+  }
+
+  // ============== TEAMS ==============
+  renderTeams() {
+    const tbody = document.getElementById('teamsTbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (this.teams.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="py-12 text-center text-slate-500 font-medium">No teams established.</td></tr>`;
+      return;
+    }
+
+    this.teams.forEach(t => {
+      const tr = document.createElement('tr');
+      tr.className = "hover:bg-slate-50 transition-colors group";
+      tr.innerHTML = `
+        <td class="px-8 py-5 text-sm font-extrabold text-slate-800">${t.teamName}</td>
+        <td class="px-8 py-5 text-sm font-medium text-slate-500">${this.getCaptainName(t.captainId)}</td>
+        <td class="px-8 py-5 text-right text-sm space-x-3">
+          <button class="font-bold text-blue-500 hover:text-blue-700" onclick="window.manageData.editTeam('${t.id}')">Edit</button>
+          <button class="font-bold text-red-500 hover:text-red-700" onclick="window.manageData.deleteTeam('${t.id}', '${t.teamName}')">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
     });
-  });
+  }
 
-  // Modal backdrops
-  document.querySelectorAll('.modal-backdrop').forEach(backdrop => {
-    backdrop.addEventListener('click', (e) => {
-      const modal = e.target.closest('.modal');
-      modal.classList.add('hidden');
+  async handleTeamSubmit(e) {
+    e.preventDefault();
+    const saveBtn = e.target.querySelector('button[type="submit"]');
+    const id = document.getElementById('teamId').value;
+    const name = document.getElementById('teamNameInput').value;
+    const captainId = document.getElementById('teamCaptain').value || null;
+
+    const originalBtnText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+
+    const data = {
+      teamName: name,
+      captainId: captainId
+    };
+
+    try {
+      if (id) {
+        await updateDoc(doc(db, 'teams', id), data);
+        this.showToast('Team updated successfully');
+      } else {
+        await addDoc(collection(db, 'teams'), data);
+        this.showToast('Team created successfully');
+      }
+      this.closeModal(document.getElementById('teamModal'));
+      await this.loadAllData();
+    } catch (err) {
+      console.error(err);
+      this.showToast('Failed to save team', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalBtnText;
+    }
+  }
+
+  editTeam(id) {
+    const t = this.teams.find(t => t.id === id);
+    if (!t) return;
+
+    document.getElementById('teamId').value = t.id;
+    document.getElementById('teamNameInput').value = t.teamName;
+    document.getElementById('teamCaptain').value = t.captainId || '';
+
+    document.getElementById('teamModalTitle').textContent = 'Edit Team';
+    const m = document.getElementById('teamModal');
+    m.classList.remove('hidden');
+    setTimeout(() => m.querySelector('.modal-anim').classList.add('active'), 10);
+  }
+
+  deleteTeam(id, name) {
+    this.showDeleteConfirm(
+      'Delete Team',
+      `Are you sure you want to delete ${name}? Associated members will remain but become unassigned.`,
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'teams', id));
+          this.showToast('Team deleted successfully');
+          await this.loadAllData();
+        } catch (err) {
+          console.error(err);
+          this.showToast('Failed to delete team', 'error');
+        }
+      }
+    );
+  }
+
+  // ============== MEMBERS ==============
+  renderMembers() {
+    const tbody = document.getElementById('membersTbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (this.members.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="3" class="py-12 text-center text-slate-500 font-medium">No members added yet.</td></tr>`;
+      return;
+    }
+
+    this.members.forEach(m => {
+      const tr = document.createElement('tr');
+      tr.className = "hover:bg-slate-50 transition-colors group";
+      tr.innerHTML = `
+        <td class="px-8 py-5 text-sm font-extrabold text-slate-800">${m.memberName || m.name}</td>
+        <td class="px-8 py-5 text-sm font-medium text-slate-500">${this.getTeamName(m.teamId)}</td>
+        <td class="px-8 py-5 text-right text-sm space-x-3">
+          <button class="font-bold text-blue-500 hover:text-blue-700" onclick="window.manageData.editMember('${m.id}')">Edit</button>
+          <button class="font-bold text-red-500 hover:text-red-700" onclick="window.manageData.deleteMember('${m.id}', '${m.memberName || m.name}')">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
     });
-  });
-};
-
-/**
- * Switch between tabs
- */
-const switchTab = async (tabName) => {
-  currentTab = tabName;
-
-  // Update tab buttons
-  document.querySelectorAll('[data-tab]').forEach(tab => {
-    if (tab.dataset.tab === tabName) {
-      tab.classList.add('active');
-    } else {
-      tab.classList.remove('active');
-    }
-  });
-
-  // Show corresponding content
-  document.querySelectorAll('[data-content]').forEach(content => {
-    if (content.dataset.content === tabName) {
-      content.classList.remove('hidden');
-    } else {
-      content.classList.add('hidden');
-    }
-  });
-
-  // Load data based on tab
-  if (tabName === 'captains') {
-    await loadCaptains();
-  } else if (tabName === 'teams') {
-    await loadTeams();
-  } else if (tabName === 'members') {
-    await loadMembers();
-  }
-};
-
-/**
- * ========================
- * CAPTAINS MANAGEMENT
- * ========================
- */
-
-const loadCaptains = async () => {
-  try {
-    showLoading('captains-tbody', true);
-    const result = await getCaptains();
-
-    if (result.success) {
-      renderCaptainsList(result.data);
-    }
-
-    showLoading('captains-tbody', false);
-  } catch (error) {
-    console.error('Error loading captains:', error);
-    showNotification('Error loading captains', 'error');
-    showLoading('captains-tbody', false);
-  }
-};
-
-const renderCaptainsList = (captains) => {
-  const tbody = document.getElementById('captains-tbody');
-
-  if (captains.length === 0) {
-    tbody.innerHTML = `
-      <tr class="table-row">
-        <td colspan="5" class="table-empty">
-          <div class="empty-state">
-            <p>No captains found</p>
-          </div>
-        </td>
-      </tr>
-    `;
-    return;
   }
 
-  tbody.innerHTML = captains.map(captain => `
-    <tr class="table-row">
-      <td class="table-cell">${captain.name}</td>
-      <td class="table-cell">${captain.email}</td>
-      <td class="table-cell">${captain.teamName}</td>
-      <td class="table-cell">
-        <span class="status-pill ${captain.status === 'active' ? 'status-pill--active' : 'status-pill--inactive'}">${captain.status}</span>
-      </td>
-      <td class="table-cell">
-        <div class="action-buttons">
-          <button onclick="window.editCaptain('${captain.id}')" class="button button--small button--primary">Edit</button>
-          ${captain.status === 'active' ? `<button onclick="window.deactivateCaptainHandler('${captain.id}')" class="button button--small button--danger">Deactivate</button>` : ''}
-        </div>
-      </td>
-    </tr>
-  `).join('');
-};
+  async handleMemberSubmit(e) {
+    e.preventDefault();
+    const saveBtn = e.target.querySelector('button[type="submit"]');
+    const id = document.getElementById('memId').value;
+    const name = document.getElementById('memName').value;
+    const teamId = document.getElementById('memTeam').value;
+    const team = this.teams.find(t => t.id === teamId);
 
-const saveCaptain = async () => {
-  const name = document.getElementById('captain-name').value;
-  const email = document.getElementById('captain-email').value;
-  const teamId = document.getElementById('captain-team').value;
+    const originalBtnText = saveBtn.textContent;
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
 
-  const errors = validateCaptainData({ name, email, teamId });
-  if (errors.length > 0) {
-    showNotification(errors[0], 'error');
-    return;
-  }
+    const data = {
+      memberName: name,
+      teamId: teamId,
+      captainId: team ? team.captainId : null
+    };
 
-  try {
-    const captainId = document.getElementById('captain-modal').dataset.captainId;
-    
-    if (captainId) {
-      const result = await updateCaptain(captainId, { name, email, teamId });
-      if (result.success) {
-        showNotification('Captain updated successfully', 'success');
+    try {
+      if (id) {
+        await updateDoc(doc(db, 'members', id), data);
+        this.showToast('Member updated successfully');
+      } else {
+        await addDoc(collection(db, 'members'), data);
+        this.showToast('Member added successfully');
       }
-    } else {
-      const result = await addCaptain({ name, email, teamId });
-      if (result.success) {
-        showNotification('Captain added successfully', 'success');
+      this.closeModal(document.getElementById('memberModal'));
+      await this.loadAllData();
+    } catch (err) {
+      console.error(err);
+      this.showToast('Failed to save member', 'error');
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = originalBtnText;
+    }
+  }
+
+  editMember(id) {
+    const m = this.members.find(m => m.id === id);
+    if (!m) return;
+
+    document.getElementById('memId').value = m.id;
+    document.getElementById('memName').value = m.memberName || m.name;
+    document.getElementById('memTeam').value = m.teamId || '';
+
+    document.getElementById('memberModalTitle').textContent = 'Edit Member';
+    const md = document.getElementById('memberModal');
+    md.classList.remove('hidden');
+    setTimeout(() => md.querySelector('.modal-anim').classList.add('active'), 10);
+  }
+
+  deleteMember(id, name) {
+    this.showDeleteConfirm(
+      'Delete Member',
+      `Are you sure you want to remove ${name} from the directory?`,
+      async () => {
+        try {
+          await deleteDoc(doc(db, 'members', id));
+          this.showToast('Member deleted successfully');
+          await this.loadAllData();
+        } catch (err) {
+          console.error(err);
+          this.showToast('Failed to delete member', 'error');
+        }
       }
-    }
-
-    closeCaptainModal();
-    await loadCaptains();
-  } catch (error) {
-    console.error('Error saving captain:', error);
-    showNotification('Error saving captain', 'error');
+    );
   }
-};
-
-window.editCaptain = async (captainId) => {
-  const result = await getCaptains();
-  const captain = result.data?.find(c => c.id === captainId);
-
-  if (captain) {
-    document.getElementById('captain-name').value = captain.name;
-    document.getElementById('captain-email').value = captain.email;
-    document.getElementById('captain-team').value = captain.teamId;
-    document.getElementById('captain-modal').dataset.captainId = captainId;
-    openCaptainModal();
-  }
-};
-
-window.deactivateCaptainHandler = async (captainId) => {
-  if (confirm('Are you sure you want to deactivate this captain?')) {
-    const result = await deactivateCaptain(captainId);
-    if (result.success) {
-      showNotification('Captain deactivated', 'success');
-      await loadCaptains();
-    }
-  }
-};
-
-const openCaptainModal = async () => {
-  // Populate teams dropdown
-  const teamsResult = await getTeams();
-  const select = document.getElementById('captain-team');
-  select.innerHTML = '<option value="">Select Team</option>' +
-    teamsResult.data.map(t => `<option value="${t.id}">${t.teamName}</option>`).join('');
-
-  document.getElementById('captain-modal').classList.remove('hidden');
-};
-
-const closeCaptainModal = () => {
-  document.getElementById('captain-modal').classList.add('hidden');
-  document.getElementById('captain-name').value = '';
-  document.getElementById('captain-email').value = '';
-  document.getElementById('captain-team').value = '';
-  delete document.getElementById('captain-modal').dataset.captainId;
-};
-
-/**
- * ========================
- * TEAMS MANAGEMENT
- * ========================
- */
-
-const loadTeams = async () => {
-  try {
-    showLoading('teams-tbody', true);
-    const result = await getTeams();
-
-    if (result.success) {
-      renderTeamsList(result.data);
-    }
-
-    showLoading('teams-tbody', false);
-  } catch (error) {
-    console.error('Error loading teams:', error);
-    showNotification('Error loading teams', 'error');
-    showLoading('teams-tbody', false);
-  }
-};
-
-const renderTeamsList = (teams) => {
-  const tbody = document.getElementById('teams-tbody');
-
-  if (teams.length === 0) {
-    tbody.innerHTML = `
-      <tr class="table-row">
-        <td colspan="3" class="table-empty">
-          <div class="empty-state">
-            <p>No teams found</p>
-          </div>
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = teams.map(team => `
-    <tr class="table-row">
-      <td class="table-cell">${team.teamName}</td>
-      <td class="table-cell">${team.captainName}</td>
-      <td class="table-cell">
-        <div class="action-buttons">
-          <button onclick="window.editTeam('${team.id}')" class="button button--small button--primary">Edit</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-};
-
-const saveTeam = async () => {
-  const teamName = document.getElementById('team-name').value;
-  const captainId = document.getElementById('team-captain').value;
-
-  const errors = validateTeamData({ teamName, captainId });
-  if (errors.length > 0) {
-    showNotification(errors[0], 'error');
-    return;
-  }
-
-  try {
-    const teamId = document.getElementById('team-modal').dataset.teamId;
-    
-    if (teamId) {
-      const result = await updateTeam(teamId, { teamName, captainId });
-      if (result.success) {
-        showNotification('Team updated successfully', 'success');
-      }
-    } else {
-      const result = await addTeam({ teamName, captainId });
-      if (result.success) {
-        showNotification('Team added successfully', 'success');
-      }
-    }
-
-    closeTeamModal();
-    await loadTeams();
-  } catch (error) {
-    console.error('Error saving team:', error);
-    showNotification('Error saving team', 'error');
-  }
-};
-
-window.editTeam = async (teamId) => {
-  const result = await getTeams();
-  const team = result.data?.find(t => t.id === teamId);
-
-  if (team) {
-    document.getElementById('team-name').value = team.teamName;
-    document.getElementById('team-captain').value = team.captainId;
-    document.getElementById('team-modal').dataset.teamId = teamId;
-    openTeamModal();
-  }
-};
-
-const openTeamModal = async () => {
-  // Populate captains dropdown
-  const captainsResult = await getCaptains();
-  const select = document.getElementById('team-captain');
-  select.innerHTML = '<option value="">Select Captain</option>' +
-    captainsResult.data.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-  
-  document.getElementById('team-modal').classList.remove('hidden');
-};
-
-const closeTeamModal = () => {
-  document.getElementById('team-modal').classList.add('hidden');
-  document.getElementById('team-name').value = '';
-  document.getElementById('team-captain').value = '';
-  delete document.getElementById('team-modal').dataset.teamId;
-};
-
-const openMemberModal = async () => {
-  // Populate teams dropdown
-  const teamsResult = await getTeams();
-  const select = document.getElementById('member-team');
-  select.innerHTML = '<option value="">Select Team</option>' +
-    teamsResult.data.map(t => `<option value="${t.id}">${t.teamName}</option>`).join('');
-
-  document.getElementById('member-modal').classList.remove('hidden');
-};
-
-const closeMemberModal = () => {
-  document.getElementById('member-modal').classList.add('hidden');
-  document.getElementById('member-name').value = '';
-  document.getElementById('member-team').value = '';
-  document.getElementById('member-status').value = 'active';
-  delete document.getElementById('member-modal').dataset.memberId;
-};
-
-/**
- * ========================
- * MEMBERS MANAGEMENT
- * ========================
- */
-
-const loadMembers = async () => {
-  try {
-    showLoading('members-tbody', true);
-    const result = await getMembers();
-
-    if (result.success) {
-      renderMembersList(result.data);
-    }
-
-    showLoading('members-tbody', false);
-  } catch (error) {
-    console.error('Error loading members:', error);
-    showNotification('Error loading members', 'error');
-    showLoading('members-tbody', false);
-  }
-};
-
-const renderMembersList = (members) => {
-  const tbody = document.getElementById('members-tbody');
-
-  if (members.length === 0) {
-    tbody.innerHTML = `
-      <tr class="table-row">
-        <td colspan="3" class="table-empty">
-          <div class="empty-state">
-            <p>No members found</p>
-          </div>
-        </td>
-      </tr>
-    `;
-    return;
-  }
-
-  tbody.innerHTML = members.map(member => `
-    <tr class="table-row">
-      <td class="table-cell">${member.memberName}</td>
-      <td class="table-cell">${member.teamName}</td>
-      <td class="table-cell">
-        <div class="action-buttons">
-          <button onclick="window.editMember('${member.id}')" class="button button--small button--primary">Edit</button>
-          <button onclick="window.removeMemberHandler('${member.id}')" class="button button--small button--danger">Delete</button>
-        </div>
-      </td>
-    </tr>
-  `).join('');
-};
-
-const saveMember = async () => {
-  const memberName = document.getElementById('member-name').value;
-  const teamId = document.getElementById('member-team').value;
-  const status = document.getElementById('member-status').value;
-
-  const errors = validateMemberData({ memberName, teamId });
-  if (errors.length > 0) {
-    showNotification(errors[0], 'error');
-    return;
-  }
-
-  try {
-    const memberId = document.getElementById('member-modal').dataset.memberId;
-    const teamResult = await getTeams();
-    const team = teamResult.data?.find(t => t.id === teamId);
-    const captainId = team?.captainId || '';
-    
-    if (memberId) {
-      const result = await updateMember(memberId, { memberName, teamId, captainId, status });
-      if (result.success) {
-        showNotification('Member updated successfully', 'success');
-      }
-    } else {
-      const result = await addMember({ memberName, teamId, captainId });
-      if (result.success) {
-        showNotification('Member added successfully', 'success');
-      }
-    }
-
-    closeMemberModal();
-    await loadMembers();
-  } catch (error) {
-    console.error('Error saving member:', error);
-    showNotification('Error saving member', 'error');
-  }
-};
-
-window.editMember = async (memberId) => {
-  const result = await getMembers();
-  const member = result.data?.find(m => m.id === memberId);
-
-  if (member) {
-    document.getElementById('member-name').value = member.memberName;
-    document.getElementById('member-team').value = member.teamId;
-    document.getElementById('member-status').value = member.status;
-    document.getElementById('member-modal').dataset.memberId = memberId;
-    openMemberModal();
-  }
-};
-
-window.removeMemberHandler = async (memberId) => {
-  if (confirm('Are you sure you want to remove this member?')) {
-    const result = await removeMember(memberId);
-    if (result.success) {
-      showNotification('Member removed', 'success');
-      await loadMembers();
-    }
-  }
-};
-
-const openMemberModal = async () => {
-  // Populate teams dropdown
-  const teamsResult = await getTeams();
-  const select = document.getElementById('member-team');
-  select.innerHTML = '<option value="">Select Team</option>' +
-    teamsResult.data.map(t => `<option value="${t.id}">${t.teamName}</option>`).join('');
-  
-  document.getElementById('member-modal').classList.remove('hidden');
-};
-
-const closeMemberModal = () => {
-  document.getElementById('member-modal').classList.add('hidden');
-  document.getElementById('member-name').value = '';
-  document.getElementById('member-team').value = '';
-  document.getElementById('member-status').value = 'active';
-  delete document.getElementById('member-modal').dataset.memberId;
-};
-
-/**
- * Setup event listeners
- */
-const setupEventListeners = () => {
-  // Captain buttons
-  document.getElementById('btn-add-captain').addEventListener('click', () => {
-    document.getElementById('captain-modal').dataset.captainId = '';
-    openCaptainModal();
-  });
-  document.getElementById('btn-save-captain').addEventListener('click', saveCaptain);
-  document.getElementById('btn-cancel-captain').addEventListener('click', closeCaptainModal);
-
-  // Team buttons
-  document.getElementById('btn-add-team').addEventListener('click', () => {
-    document.getElementById('team-modal').dataset.teamId = '';
-    openTeamModal();
-  });
-  document.getElementById('btn-save-team').addEventListener('click', saveTeam);
-  document.getElementById('btn-cancel-team').addEventListener('click', closeTeamModal);
-
-  // Member buttons
-  document.getElementById('btn-add-member').addEventListener('click', () => {
-    document.getElementById('member-modal').dataset.memberId = '';
-    openMemberModal();
-  });
-  document.getElementById('btn-save-member').addEventListener('click', saveMember);
-  document.getElementById('btn-cancel-member').addEventListener('click', closeMemberModal);
-};
-
-/**
- * Show loading state
- */
-const showLoading = (containerId, loading) => {
-  const container = document.getElementById(containerId);
-  if (!container) return;
-
-  if (loading) {
-    const colspan = containerId.includes('captains') ? 5 : containerId.includes('teams') ? 3 : 3;
-    container.innerHTML = `
-      <tr class="table-row">
-        <td colspan="${colspan}" class="loading-state">
-          <div class="spinner"></div>
-        </td>
-      </tr>
-    `;
-  } else {
-    // Don't clear here, as render functions will set the content
-  }
-};
-
-/**
- * Show notification
- */
-const showNotification = (message, type = 'info') => {
-  const notification = document.createElement('div');
-  notification.className = `notification notification--${type}`;
-  notification.textContent = message;
-
-  document.body.appendChild(notification);
-
-  setTimeout(() => {
-    notification.style.animation = 'slide-out 0.3s ease-out';
-    setTimeout(() => notification.remove(), 300);
-  }, 3000);
-};
-
-// Initialize when DOM is ready
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initManageData);
-} else {
-  initManageData();
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+  window.manageData = new ManageData();
+});

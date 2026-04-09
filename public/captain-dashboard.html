@@ -5,95 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Captain Dashboard - BNI Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        body { font-family: 'Inter', sans-serif; }
         .bni-red { background-color: #cf202e; }
         .bni-text-red { color: #cf202e; }
         .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+        .modal-anim { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Toast Animation */
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .toast-animate { animation: slideIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-slate-100 min-h-screen pb-24">
+<body class="bg-slate-50 min-h-screen pb-32 selection:bg-red-100">
 
-    <nav class="bg-white border-b px-4 py-3 sticky top-0 z-10">
-        <div class="max-w-md mx-auto flex justify-between items-center">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col gap-3"></div>
+
+    <nav class="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-40 backdrop-blur-md bg-white/90">
+        <div class="max-w-md mx-auto flex justify-between items-center text-sm">
             <div class="flex items-center gap-2">
-                <span class="bni-red text-white font-black px-2 py-1 rounded text-sm">BNI</span>
-                <span class="font-bold text-slate-800 tracking-tight">MC Tracker</span>
+                <span class="bni-red text-white font-black px-2 py-1 rounded text-xs select-none">BNI</span>
+                <span class="font-extrabold text-slate-800 tracking-tight">MC TRACKER</span>
             </div>
-            <button id="logout-btn" class="text-slate-400 text-sm font-medium">Logout</button>
+            <button id="logout-btn" class="text-slate-400 hover:text-red-500 font-bold transition-colors">Logout</button>
         </div>
     </nav>
 
     <section id="captain-view" class="p-4 max-w-md mx-auto">
-        <header class="mb-6">
-            <h1 class="text-2xl font-bold text-slate-900">Weekly Attendance</h1>
-            <div class="flex justify-between items-center mt-1">
-                <p class="text-slate-500 text-sm" id="current-date">Meeting: Oct 24, 2024</p>
-                <span class="text-xs bg-slate-200 text-slate-600 px-2 py-1 rounded-full font-bold" id="team-badge">TEAM GOLD</span>
+        <header class="mb-8">
+            <div class="flex items-center gap-3 mb-2">
+                <div id="user-initials" class="h-10 w-10 bni-red text-white flex items-center justify-center rounded-full font-bold text-sm shadow-sm">C</div>
+                <div>
+                    <h2 id="captain-name" class="text-sm font-bold text-slate-400 uppercase tracking-wider">Loading Profile...</h2>
+                    <h1 class="text-2xl font-extrabold text-slate-900 -mt-0.5">Weekly Roster</h1>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
+                <div class="flex flex-col">
+                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Current Meeting</span>
+                    <span id="current-date" class="text-sm font-bold text-slate-700 italic">Finding Date...</span>
+                </div>
+                <span id="team-badge" class="text-[10px] bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full font-black ring-1 ring-blue-100">TEAM ROSTER</span>
             </div>
         </header>
 
-        <div id="member-list-container" class="space-y-4">
-            <div class="bg-white rounded-2xl p-4 card-shadow border-l-4 border-green-500 member-card" data-member-id="101">
-                <div class="flex justify-between items-start mb-3">
-                    <div>
-                        <h3 class="font-bold text-slate-800 text-lg">Johnathan Wick</h3>
-                        <p class="text-[10px] uppercase tracking-wider font-bold text-slate-400">Prev Week: <span class="text-green-600">Present</span></p>
-                    </div>
-                    
-                    <div class="inline-flex bg-slate-100 p-1 rounded-xl">
-                        <button onclick="toggleAttendance('101', true)" id="btn-p-101" class="px-4 py-1.5 rounded-lg font-bold text-sm transition-all bg-green-500 text-white shadow-sm">P</button>
-                        <button onclick="toggleAttendance('101', false)" id="btn-a-101" class="px-4 py-1.5 rounded-lg font-bold text-sm transition-all text-slate-400">A</button>
-                    </div>
-                </div>
-
-                <div id="absence-logic-101" class="hidden space-y-3 pt-3 border-t border-slate-50 mt-2">
-                    <div>
-                        <label class="text-[11px] font-bold text-slate-500 uppercase">Reason for Absence</label>
-                        <select class="w-full mt-1 bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm focus:ring-2 focus:ring-red-500 outline-none">
-                            <option value="">Select a reason...</option>
-                            <option value="medical">Medical / Health</option>
-                            <option value="business">Business / Travel</option>
-                            <option value="personal">Personal / Emergency</option>
-                            <option value="unexcused">No Intimation</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <input type="checkbox" id="intimation-101" class="w-4 h-4 accent-red-600">
-                        <label for="intimation-101" class="text-sm text-slate-600">Prior intimation received?</label>
-                    </div>
-                </div>
+        <!-- Loading State -->
+        <div id="loading-container" class="space-y-4 py-10">
+            <div class="animate-pulse flex flex-col items-center">
+                <div class="h-8 w-8 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mb-4"></div>
+                <p class="text-slate-400 font-bold text-sm tracking-wide uppercase">Syncing Team Data</p>
             </div>
-            </div>
+        </div>
 
-        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-md border-t border-slate-200">
+        <!-- Dynamic Member List -->
+        <div id="member-list-container" class="space-y-4 hidden"></div>
+
+        <!-- Bottom Actions -->
+        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-slate-200 z-30">
             <div class="max-w-md mx-auto">
-                <button id="save-attendance-btn" class="w-full bni-red hover:bg-red-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-red-200 transition-all active:scale-[0.98]">
-                    Submit Team Attendance
+                <button id="save-attendance-btn" class="w-full bni-red hover:bg-red-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-red-200 transition-all active:scale-[0.98] disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed">
+                    Submit Team Report
                 </button>
             </div>
         </div>
     </section>
 
-    <script>
-        // UI Logic for toggling absence fields
-        function toggleAttendance(memberId, isPresent) {
-            const absenceDiv = document.getElementById(`absence-logic-${memberId}`);
-            const btnP = document.getElementById(`btn-p-${memberId}`);
-            const btnA = document.getElementById(`btn-a-${memberId}`);
-            const card = document.querySelector(`[data-member-id="${memberId}"]`);
-
-            if (isPresent) {
-                absenceDiv.classList.add('hidden');
-                btnP.className = "px-4 py-1.5 rounded-lg font-bold text-sm transition-all bg-green-500 text-white shadow-sm";
-                btnA.className = "px-4 py-1.5 rounded-lg font-bold text-sm transition-all text-slate-400";
-                card.classList.replace('border-red-500', 'border-green-500');
-            } else {
-                absenceDiv.classList.remove('hidden');
-                btnP.className = "px-4 py-1.5 rounded-lg font-bold text-sm transition-all text-slate-400";
-                btnA.className = "px-4 py-1.5 rounded-lg font-bold text-sm transition-all bg-red-600 text-white shadow-sm";
-                card.classList.replace('border-green-500', 'border-red-500');
-            }
-        }
-    </script>
+    <!-- Essential logic script -->
+    <script type="module" src="../src/views/captain/dashboard.js"></script>
 </body>
 </html>

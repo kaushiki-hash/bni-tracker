@@ -1,134 +1,237 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Admin Dashboard - BNI Attendance Tracker</title>
-  <link rel="stylesheet" href="admin-dashboard.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- SheetJS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #0f172a; }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            bni: {
+              navy: '#0a2540',
+              blue: '#1a4a6f',
+              red: '#cf202e',
+            }
+          }
+        }
+      }
+    }
+  </script>
 </head>
-<body class="page-shell">
-  <header class="topbar">
-    <div class="topbar__brand">
-      <div class="brand__mark">BNI</div>
-      <div>
-        <p class="brand__title">Admin Dashboard</p>
-        <p class="brand__subtitle">BNI Attendance Tracker</p>
-      </div>
-    </div>
+<body class="min-h-screen antialiased selection:bg-bni-red selection:text-white">
 
-    <div class="topbar__action-group">
-      <div class="topbar__profile">
-        <span class="topbar__meta">Welcome back</span>
-        <strong id="admin-name">Admin</strong>
-        <span class="topbar__meta">Administrator access</span>
+  <!-- Floating Toast Header -->
+  <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col gap-3"></div>
+
+  <!-- Header Section -->
+  <header class="bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-900 text-white shadow-lg sticky top-0 z-40">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-20">
+        <div class="flex items-center gap-4">
+          <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0ea5e9] to-[#0284c7] shadow-inner font-bold text-xl tracking-wider text-white border border-white/10">
+            BNI
+          </div>
+          <div>
+            <h1 class="text-xl font-bold tracking-tight">Admin Dashboard</h1>
+            <p class="text-xs text-blue-200 uppercase tracking-widest font-semibold">BNI Attendance Tracker</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-6">
+          <a href="./home.html" class="hidden sm:flex text-sm font-semibold text-blue-200 hover:text-white hover:underline transition-colors duration-200">
+            Selection Hub
+          </a>
+          <a href="./manage-data.html" class="hidden sm:flex text-sm font-semibold text-blue-200 hover:text-white hover:underline transition-colors duration-200">
+            Manage Data
+          </a>
+          <div class="h-6 w-px bg-blue-500/30"></div>
+          <div class="flex items-center gap-3">
+            <span class="text-sm font-medium text-blue-100 hidden sm:block">Welcome back,</span>
+            <span class="text-sm font-bold bg-white/10 px-3 py-1.5 rounded-full" id="adminName">Admin</span>
+          </div>
+          <button id="btnLogout" class="rounded-full bg-white/10 p-2.5 hover:bg-bni-red hover:text-white hover:shadow-lg transition-all duration-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
       </div>
-      <button id="btn-logout" class="button button--danger">Logout</button>
     </div>
   </header>
 
-  <main>
-    <section class="section-card">
-      <div class="section-heading">Overview</div>
-      <p class="section-copy">Monitor attendance health, member counts, and absence summary for your chapter.</p>
-      <div id="stats-container" class="stats-grid">
-        <article class="stat-card">
-          <p class="stat-card__label">Total Teams</p>
-          <p class="stat-card__value" id="total-teams">0</p>
-        </article>
-        <article class="stat-card">
-          <p class="stat-card__label">Total Members</p>
-          <p class="stat-card__value" id="total-members">0</p>
-        </article>
-        <article class="stat-card">
-          <p class="stat-card__label">Attendance %</p>
-          <p class="stat-card__value" id="attendance-percentage">0%</p>
-        </article>
-        <article class="stat-card">
-          <p class="stat-card__label">Total Absent</p>
-          <p class="stat-card__value" id="total-absent">0</p>
-        </article>
-      </div>
-    </section>
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-    <section class="section-card">
-      <div class="section-heading">Filter records</div>
-      <p class="section-copy">Narrow results by meeting date, captain, or team before exporting or reviewing attendance.</p>
-
-      <div class="filter-grid">
-        <div class="filter-field">
-          <label for="filter-date">Meeting Date</label>
-          <input id="filter-date" type="date" class="input-field" />
+    <!-- KPI Widgets -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      
+      <!-- Teams Stat -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg hover:shadow-xl hover:border-bni-red transition-all duration-300 flex justify-between items-start group">
+        <div>
+          <p class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Total Teams</p>
+          <h3 id="statTeams" class="text-4xl font-extrabold text-slate-800">0</h3>
         </div>
-        <div class="filter-field">
-          <label for="filter-captain">Captain</label>
-          <select id="filter-captain" class="input-field">
-            <option value="">All Captains</option>
-          </select>
-        </div>
-        <div class="filter-field">
-          <label for="filter-team">Team</label>
-          <select id="filter-team" class="input-field">
-            <option value="">All Teams</option>
-          </select>
+        <div class="p-3 bg-blue-50 text-blue-600 rounded-xl group-hover:bg-bni-red group-hover:text-white transition-colors duration-300">
+          <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
         </div>
       </div>
 
-      <div class="button-group button-group--spaced">
-        <button id="btn-apply-filters" class="button button--primary">Apply Filters</button>
-        <button id="btn-reset-filters" class="button button--secondary">Reset Filters</button>
+      <!-- Members Stat -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg hover:shadow-xl hover:border-bni-red transition-all duration-300 flex justify-between items-start group">
+        <div>
+          <p class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Total Members</p>
+          <h3 id="statMembers" class="text-4xl font-extrabold text-slate-800">0</h3>
+        </div>
+        <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl group-hover:bg-bni-red group-hover:text-white transition-colors duration-300">
+          <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+        </div>
       </div>
-    </section>
 
-    <section class="section-card">
-      <div class="section-heading">Export data</div>
-      <p class="section-copy">Export the filtered attendance report or share a summary with your team.</p>
-      <div class="export-grid" id="export-buttons-container">
-        <button id="btn-export-excel" class="button button--success">Export to Excel</button>
-        <button id="btn-export-pdf" class="button button--secondary">Export to PDF</button>
-        <button id="btn-share-whatsapp" class="button button--primary">Share via WhatsApp</button>
+      <!-- Attendance % Stat -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg hover:shadow-xl hover:border-bni-red transition-all duration-300 flex justify-between items-start group">
+        <div>
+          <p class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Attendance (7d)</p>
+          <h3 id="statAttendance" class="text-4xl font-extrabold text-slate-800">0%</h3>
+        </div>
+        <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl group-hover:bg-bni-red group-hover:text-white transition-colors duration-300">
+          <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path></svg>
+        </div>
       </div>
-    </section>
 
-    <section class="section-card">
-      <div class="section-heading">Attendance table</div>
-      <div class="table-frame">
-        <div id="table-container"></div>
-        <table class="data-table">
-          <thead>
+      <!-- Absent Stat -->
+      <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-lg hover:shadow-xl hover:border-bni-red transition-all duration-300 flex justify-between items-start group">
+        <div>
+          <p class="text-sm font-bold text-slate-500 uppercase tracking-widest mb-1">Absent (7d)</p>
+          <h3 id="statAbsent" class="text-4xl font-extrabold text-bni-red">0</h3>
+        </div>
+        <div class="p-3 bg-red-50 text-bni-red rounded-xl group-hover:bg-bni-red group-hover:text-white transition-colors duration-300">
+             <svg class="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="bg-white rounded-2xl p-6 mb-8 border border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300">
+      <div class="mb-4">
+        <h2 class="text-lg font-bold text-slate-800">Filter Records</h2>
+        <p class="text-sm text-slate-500">Narrow results by meeting date, captain, or team before exporting attendance.</p>
+      </div>
+      
+      <div class="flex flex-col xl:flex-row xl:items-end justify-between gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
+          <div class="space-y-2">
+            <label class="text-sm font-semibold text-slate-700">Meeting Date</label>
+            <input type="date" id="filterDate" class="w-full h-12 px-4 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm text-slate-800" />
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm font-semibold text-slate-700">Filter by Captain</label>
+            <select id="filterCaptain" class="w-full h-12 px-4 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm text-slate-800 appearance-none">
+              <option value="">All Captains</option>
+            </select>
+          </div>
+          <div class="space-y-2">
+            <label class="text-sm font-semibold text-slate-700">Filter by Team</label>
+            <select id="filterTeam" class="w-full h-12 px-4 rounded-xl border border-slate-300 bg-slate-50 focus:bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm text-slate-800 appearance-none">
+              <option value="">All Teams</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-3 xl:ml-auto">
+          <button id="btnResetFilters" class="h-12 px-6 rounded-full bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 hover:text-slate-800 transition-colors shadow-sm focus:ring-4 focus:ring-slate-200">
+            Reset
+          </button>
+          <button id="btnApplyFilters" class="h-12 px-8 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold hover:shadow-lg hover:from-blue-700 hover:to-indigo-700 hover:-translate-y-0.5 transition-all focus:ring-4 focus:ring-blue-500/30">
+            Apply Filters
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Table & Controls -->
+    <div class="bg-white rounded-2xl overflow-hidden shadow-lg border border-slate-200 flex flex-col hover:shadow-xl transition-shadow duration-300">
+      
+      <!-- Toolbar -->
+      <div class="p-6 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/50">
+        <div>
+          <h2 class="text-lg font-bold text-slate-800">Master Attendance Record</h2>
+          <p class="text-sm text-slate-500">Export the filtered report or share a summary.</p>
+        </div>
+        
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Excel -->
+          <button id="btnExportExcel" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-emerald-100 text-emerald-800 font-bold hover:bg-bni-red hover:text-white border border-emerald-200 hover:border-bni-red shadow-sm transition-colors duration-300">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+            Export Excel
+          </button>
+          <!-- PDF -->
+          <button id="btnExportPDF" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-100 text-slate-700 font-bold hover:bg-bni-red hover:text-white border border-slate-200 hover:border-bni-red shadow-sm transition-colors duration-300">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+            Export PDF
+          </button>
+          <!-- WhatsApp -->
+          <button id="btnShareWA" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold hover:shadow-lg hover:from-emerald-600 hover:to-emerald-700 hover:-translate-y-0.5 transition-all">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M13.601 2.326A7.854 7.854 0 0 0 7.994 0C3.627 0 .068 3.558.064 7.926c0 1.399.366 2.76 1.057 3.965L0 16l4.204-1.102a7.933 7.933 0 0 0 3.79.965h.004c4.368 0 7.926-3.558 7.93-7.93A7.898 7.898 0 0 0 13.6 2.326zM7.994 14.521a6.573 6.573 0 0 1-3.356-.92l-.24-.144-2.494.654.666-2.433-.156-.251a6.56 6.56 0 0 1-1.007-3.505c0-3.626 2.957-6.584 6.591-6.584a6.56 6.56 0 0 1 4.66 1.931 6.557 6.557 0 0 1 1.928 4.66c-.004 3.639-2.961 6.592-6.592 6.592zm3.615-4.934c-.197-.099-1.17-.578-1.353-.646-.182-.065-.315-.099-.445.099-.133.197-.513.646-.627.775-.114.133-.232.148-.43.05-.197-.1-.836-.308-1.592-.985-.59-.525-.985-1.175-1.103-1.372-.114-.198-.011-.304.088-.403.087-.088.197-.232.296-.346.1-.114.133-.198.198-.33.065-.134.034-.248-.015-.347-.05-.099-.445-1.076-.612-1.47-.16-.389-.323-.335-.445-.34-.114-.007-.247-.007-.38-.007a.729.729 0 0 0-.529.247c-.182.198-.691.677-.691 1.654 0 .977.71 1.916.81 2.049.098.133 1.394 2.132 3.383 2.992.47.205.84.326 1.129.418.475.152.904.129 1.246.08.38-.058 1.171-.48 1.338-.943.164-.464.164-.86.114-.943-.049-.084-.182-.133-.38-.232z"/></svg>
+            Share WhatsApp
+          </button>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div id="tableLoading" class="flex justify-center items-center py-24 bg-white">
+        <svg class="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+      </div>
+
+      <!-- Table Wrapper -->
+      <div class="overflow-x-auto hidden max-h-[600px] bg-white w-full" id="tableContainer">
+        <table class="min-w-full text-left border-collapse whitespace-nowrap" id="attendanceTable">
+          <thead class="sticky top-0 bg-slate-100 z-20 shadow-sm border-b border-slate-200">
             <tr>
-              <th>#</th>
-              <th>Member Name</th>
-              <th>Team</th>
-              <th>Captain</th>
-              <th>Status</th>
-              <th>Reason</th>
-              <th>Prior Intimation</th>
-              <th>Date</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">#</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Member Name</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Team</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Captain</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Status</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Reason</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Intimation</th>
+              <th class="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Date</th>
             </tr>
           </thead>
-          <tbody id="attendance-tbody">
-            <tr>
-              <td colspan="8" class="loading-state">Loading records…</td>
-            </tr>
+          <tbody id="attendanceTbody" class="divide-y divide-slate-200 bg-white">
+            <!-- Dynamic Data -->
           </tbody>
         </table>
+        
+        <!-- Empty State -->
+        <div id="emptyState" class="hidden flex-col items-center justify-center py-20 px-4 text-center bg-white">
+          <div class="h-16 w-16 rounded-full bg-slate-100 flex items-center justify-center mb-4">
+            <svg class="h-8 w-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+          </div>
+          <h3 class="text-lg font-bold text-slate-800">No records found</h3>
+          <p class="text-slate-500 text-sm mt-1 max-w-sm">No attendance records match your current filters.</p>
+        </div>
       </div>
-    </section>
+    </div>
 
-    <section class="section-card">
-      <div class="section-heading">Manage master data</div>
-      <p class="section-copy">Open the management view to update captains, teams, and members for your chapter.</p>
-      <div class="button-group button-group--spaced">
-        <a href="./manage-data.html" class="button button--primary">Go to Manage Data</a>
-      </div>
-    </section>
   </main>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-  <script type="module" src="../db/firebase-config.js"></script>
-  <script type="module" src="../db/admin-service.js"></script>
+  <!-- IMPORTANT: Load dashboard.js to keep identical IDs bounds -->
   <script type="module" src="../src/views/admin/dashboard.js"></script>
 </body>
 </html>

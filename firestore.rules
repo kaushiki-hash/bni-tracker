@@ -1,0 +1,53 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // DEVELOPMENT RULES (For testing, uncomment if needed)
+    // match /{document=**} {
+    //   allow read, write: if request.auth != null;
+    // }
+
+    // PRODUCTION RULES
+    
+    // Function to check if user is admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Function to check if user is captain
+    function isCaptain() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'captain';
+    }
+
+    // Admins can read & write everything
+    match /{document=**} {
+      allow read, write: if request.auth != null && isAdmin();
+    }
+
+    // Captains rules
+    match /teams/{teamId} {
+      // Captains can read all teams or just theirs based on requirements
+      allow read: if request.auth != null; 
+    }
+
+    match /captains/{captainId} {
+      allow read: if request.auth != null;
+    }
+
+    match /members/{memberId} {
+      allow read: if request.auth != null;
+    }
+
+    match /attendance/{attendanceId} {
+      // Captains can read attendance and write attendance for their team
+      allow read: if request.auth != null && (isAdmin() || isCaptain());
+      allow create, update: if request.auth != null && isCaptain();
+    }
+
+    // Users rules
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
