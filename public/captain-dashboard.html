@@ -5,78 +5,268 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Captain Dashboard - BNI Tracker</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .bni-red { background-color: #cf202e; }
-        .bni-text-red { color: #cf202e; }
-        .card-shadow { box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
-        .modal-anim { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        /* Toast Animation */
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
+        :root {
+            --color-background-primary: #ffffff;
+            --color-background-secondary: #f8fafc;
+            --color-background-tertiary: #f1f5f9;
+            --color-text-primary: #0f172a;
+            --color-text-secondary: #475569;
+            --color-text-tertiary: #94a3b8;
+            --color-border-secondary: #e2e8f0;
+            --color-border-tertiary: #f1f5f9;
+            --border-radius-md: 12px;
+            --border-radius-lg: 16px;
+            --font-sans: 'Inter', sans-serif;
         }
-        .toast-animate { animation: slideIn 0.3s ease-out forwards; }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-sans); background: var(--color-background-tertiary); min-height: 100vh; padding-bottom: 100px; }
+        
+        nav { background: var(--color-background-primary); border-bottom: 0.5px solid var(--color-border-tertiary); padding: 12px 16px; position: sticky; top: 0; z-index: 10; }
+        .nav-inner { max-width: 480px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+        .bni-badge { background: #cf202e; color: white; font-weight: 700; font-size: 12px; padding: 3px 7px; border-radius: 5px; letter-spacing: 0.5px; }
+        .nav-title { font-weight: 600; font-size: 15px; color: var(--color-text-primary); }
+        
+        .logout-btn { font-size: 13px; color: var(--color-text-secondary); cursor: pointer; background: none; border: none; padding: 4px 8px; border-radius: 6px; transition: background 0.15s; }
+        .logout-btn:hover { background: var(--color-background-secondary); color: var(--color-text-primary); }
+
+        .main { max-width: 480px; margin: 0 auto; padding: 16px; }
+        .page-title { font-size: 22px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 2px; }
+        .page-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .page-date { font-size: 13px; color: var(--color-text-secondary); }
+        .team-tag { font-size: 11px; font-weight: 700; background: var(--color-background-secondary); color: var(--color-text-secondary); padding: 3px 10px; border-radius: 20px; text-transform: uppercase; }
+
+        .member-card { background: var(--color-background-primary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); border-left: 4px solid #22c55e; padding: 14px 16px; margin-bottom: 12px; transition: all 0.2s; }
+        .member-card.absent { border-left-color: #cf202e; }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; }
+        .member-name { font-size: 16px; font-weight: 500; color: var(--color-text-primary); }
+
+        .delete-btn { background: none; border: none; color: #94a3b8; cursor: pointer; padding: 4px; border-radius: 6px; transition: all 0.2s; margin-left: 8px; }
+        .delete-btn:hover { background: #fee2e2; color: #ef4444; }
+
+        .toggle-group { display: inline-flex; background: var(--color-background-secondary); padding: 3px; border-radius: 10px; gap: 2px; }
+        .toggle-btn { border: none; font-weight: 600; font-size: 13px; padding: 6px 18px; border-radius: 8px; cursor: pointer; transition: all 0.15s; background: transparent; color: var(--color-text-secondary); }
+        .toggle-btn.active-p { background: #22c55e; color: white; }
+        .toggle-btn.active-a { background: #cf202e; color: white; }
+
+        .absence-section { overflow: hidden; max-height: 0; transition: max-height 0.25s ease, opacity 0.2s ease; opacity: 0; }
+        .absence-section.open { max-height: 200px; opacity: 1; }
+        .absence-inner { padding-top: 12px; margin-top: 10px; border-top: 0.5px solid var(--color-border-tertiary); }
+        
+        select { width: 100%; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; font-size: 13px; outline: none; }
+
+        .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--color-background-primary); border-top: 0.5px solid var(--color-border-tertiary); padding: 12px 16px; z-index: 20; }
+        .submit-btn { display: block; width: 100%; max-width: 480px; margin: 0 auto; background: #cf202e; color: white; font-weight: 600; padding: 14px; border: none; border-radius: var(--border-radius-lg); cursor: pointer; }
+        
+        .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; z-index: 100; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+        .toast.show { opacity: 1; }
     </style>
 </head>
-<body class="bg-slate-50 min-h-screen pb-32 selection:bg-red-100">
+<body>
 
-    <!-- Toast Container -->
-    <div id="toastContainer" class="fixed top-6 right-6 z-50 flex flex-col gap-3"></div>
+<div class="toast" id="toast"></div>
 
-    <nav class="bg-white border-b border-slate-200 px-4 py-3 sticky top-0 z-40 backdrop-blur-md bg-white/90">
-        <div class="max-w-md mx-auto flex justify-between items-center text-sm">
-            <div class="flex items-center gap-2">
-                <span class="bni-red text-white font-black px-2 py-1 rounded text-xs select-none">BNI</span>
-                <span class="font-extrabold text-slate-800 tracking-tight">MC TRACKER</span>
-            </div>
-            <button id="logout-btn" class="text-slate-400 hover:text-red-500 font-bold transition-colors">Logout</button>
+<nav>
+    <div class="nav-inner">
+        <div style="display:flex;align-items:center;gap:8px">
+            <span class="bni-badge">BNI</span>
+            <span class="nav-title">MC Tracker</span>
         </div>
-    </nav>
+        <button class="logout-btn" id="logout-btn">Logout</button>
+    </div>
+</nav>
 
-    <section id="captain-view" class="p-4 max-w-md mx-auto">
-        <header class="mb-8">
-            <div class="flex items-center gap-3 mb-2">
-                <div id="user-initials" class="h-10 w-10 bni-red text-white flex items-center justify-center rounded-full font-bold text-sm shadow-sm">C</div>
-                <div>
-                    <h2 id="captain-name" class="text-sm font-bold text-slate-400 uppercase tracking-wider">Loading Profile...</h2>
-                    <h1 class="text-2xl font-extrabold text-slate-900 -mt-0.5">Weekly Roster</h1>
-                </div>
-            </div>
-            
-            <div class="flex justify-between items-center bg-white p-3 rounded-2xl shadow-sm border border-slate-100">
-                <div class="flex flex-col">
-                    <span class="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Current Meeting</span>
-                    <span id="current-date" class="text-sm font-bold text-slate-700 italic">Finding Date...</span>
-                </div>
-                <span id="team-badge" class="text-[10px] bg-blue-50 text-blue-600 px-3 py-1.5 rounded-full font-black ring-1 ring-blue-100">TEAM ROSTER</span>
-            </div>
-        </header>
-
-        <!-- Loading State -->
-        <div id="loading-container" class="space-y-4 py-10">
-            <div class="animate-pulse flex flex-col items-center">
-                <div class="h-8 w-8 border-4 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-                <p class="text-slate-400 font-bold text-sm tracking-wide uppercase">Syncing Team Data</p>
-            </div>
+<div class="main">
+    <div class="bg-white rounded-2xl p-4 mb-6 border border-slate-100 shadow-sm">
+        <h2 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Manage Team Members</h2>
+        <div class="flex gap-2">
+            <input type="text" id="new-member-name" placeholder="Member Name" 
+                class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-red-500">
+            <button id="add-member-btn" class="bg-slate-900 text-white px-5 py-2 rounded-xl font-bold text-sm active:scale-95 transition-transform">Add</button>
         </div>
+    </div>
 
-        <!-- Dynamic Member List -->
-        <div id="member-list-container" class="space-y-4 hidden"></div>
+    <h1 class="page-title">Weekly Attendance</h1>
+    <div class="page-meta">
+        <span class="page-date" id="meeting-date"></span>
+        <span class="team-tag" id="team-tag"></span>
+    </div>
 
-        <!-- Bottom Actions -->
-        <div class="fixed bottom-0 left-0 right-0 p-4 bg-white/80 backdrop-blur-xl border-t border-slate-200 z-30">
-            <div class="max-w-md mx-auto">
-                <button id="save-attendance-btn" class="w-full bni-red hover:bg-red-700 text-white font-black py-4 rounded-2xl shadow-lg shadow-red-200 transition-all active:scale-[0.98] disabled:bg-slate-300 disabled:shadow-none disabled:cursor-not-allowed">
-                    Submit Team Report
-                </button>
-            </div>
-        </div>
-    </section>
+    <div id="member-list">
+        <p style="text-align: center; color: #94a3b8; padding-top: 40px;">Loading members...</p>
+    </div>
+</div>
 
-    <!-- Essential logic script -->
-    <script type="module" src="../src/views/captain/dashboard.js"></script>
+<div class="footer-bar">
+    <button class="submit-btn" id="submit-btn">Submit Team Attendance</button>
+</div>
+
+<script type="module">
+    import { db } from '../db/firebase-config.js'; 
+    import { 
+        collection, addDoc, query, where, getDocs, doc, deleteDoc, writeBatch, serverTimestamp 
+    } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+    const listContainer = document.getElementById("member-list");
+    const state = {};
+
+    function showToast(msg) {
+        const t = document.getElementById("toast");
+        t.textContent = msg;
+        t.classList.add("show");
+        setTimeout(() => t.classList.remove("show"), 2500);
+    }
+
+    // --- ADD MEMBER ---
+    document.getElementById("add-member-btn").onclick = async () => {
+        const input = document.getElementById("new-member-name");
+        const name = input.value.trim();
+        const teamId = localStorage.getItem("teamId");
+
+        if (!name) return;
+
+        try {
+        
+await addDoc(collection(db, "members"), {
+    memberName: name,
+    teamId: teamId || "NO_TEAM_ASSIGNED", 
+    createdAt: serverTimestamp()
+});
+            input.value = "";
+            showToast("Member added!");
+            loadData();
+        } catch (err) { console.error(err); }
+    };
+
+    // --- DELETE MEMBER ---
+    async function deleteMember(id, name) {
+        if (!confirm(`Remove ${name}?`)) return;
+        try {
+            await deleteDoc(doc(db, "members", id));
+            document.getElementById(`card-${id}`).remove();
+            showToast("Member removed");
+        } catch (err) { alert("Delete failed. Check Rules!"); }
+    }
+
+    // --- LOAD DATA ---
+    async function loadData() {
+        const teamId = localStorage.getItem("teamId");
+        document.getElementById("team-tag").textContent = teamId;
+        document.getElementById("meeting-date").textContent = "Meeting: " + new Date().toLocaleDateString();
+
+        try {
+            const q = query(collection(db, "members"), where("teamId", "==", teamId));
+            const snap = await getDocs(q);
+            listContainer.innerHTML = "";
+
+            if (snap.empty) {
+                listContainer.innerHTML = `<p style="text-align:center;color:#94a3b8;padding-top:40px;">No members yet.</p>`;
+                return;
+            }
+
+            snap.forEach(memberDoc => {
+                const m = memberDoc.data();
+                const id = memberDoc.id;
+                state[id] = { present: true, name: m.memberName };
+
+                const card = document.createElement("div");
+                card.className = "member-card";
+                card.id = `card-${id}`;
+                card.innerHTML = `
+                    <div class="card-header">
+                        <div style="display:flex; align-items:center;">
+                            <div class="member-name">${m.memberName}</div>
+                            <button class="delete-btn" id="del-${id}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </button>
+                        </div>
+                        <div class="toggle-group">
+                            <button class="toggle-btn active-p" id="btnP-${id}">P</button>
+                            <button class="toggle-btn" id="btnA-${id}">A</button>
+                        </div>
+                    </div>
+                    <div class="absence-section" id="abs-${id}">
+                        <div class="absence-inner">
+                            <select id="reason-${id}">
+                                <option value="">Select Reason...</option>
+                                <option value="Medical">Medical</option>
+                                <option value="Business">Business</option>
+                                <option value="Personal">Personal</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+
+                document.getElementById(`del-${id}`).onclick = () => deleteMember(id, m.memberName);
+                document.getElementById(`btnP-${id}`).onclick = () => updateUI(id, true);
+                document.getElementById(`btnA-${id}`).onclick = () => updateUI(id, false);
+            });
+        } catch (err) { console.error(err); }
+    }
+
+    function updateUI(id, isPresent) {
+        state[id].present = isPresent;
+        const card = document.getElementById(`card-${id}`);
+        const abs = document.getElementById(`abs-${id}`);
+        const btnP = document.getElementById(`btnP-${id}`);
+        const btnA = document.getElementById(`btnA-${id}`);
+
+        if (isPresent) {
+            card.classList.remove("absent");
+            abs.classList.remove("open");
+            btnP.className = "toggle-btn active-p";
+            btnA.className = "toggle-btn";
+        } else {
+            card.classList.add("absent");
+            abs.classList.add("open");
+            btnP.className = "toggle-btn";
+            btnA.className = "toggle-btn active-a";
+        }
+    }
+
+    // --- SUBMIT ATTENDANCE ---
+    document.getElementById("submit-btn").onclick = async () => {
+        const batch = writeBatch(db);
+        const teamId = localStorage.getItem("teamId");
+        const dateStr = new Date().toISOString().split('T')[0];
+
+        for (const id in state) {
+            const isAbsent = !state[id].present;
+            const reason = isAbsent ? document.getElementById(`reason-${id}`).value : "";
+
+            if (isAbsent && !reason) {
+                alert(`Reason required for ${state[id].name}`);
+                return;
+            }
+
+            const ref = doc(collection(db, "attendance"));
+            batch.set(ref, {
+                memberId: id,
+                memberName: state[id].name,
+                teamId: teamId,
+                status: isAbsent ? "Absent" : "Present",
+                reason: reason,
+                date: dateStr,
+                timestamp: serverTimestamp()
+            });
+        }
+
+        try {
+            await batch.commit();
+            showToast("Attendance Submitted!");
+            setTimeout(() => location.reload(), 1500);
+        } catch (err) { alert("Submission failed!"); }
+    };
+
+    document.getElementById("logout-btn").onclick = () => {
+        localStorage.clear();
+        window.location.href = 'login.html';
+    };
+
+    loadData();
+</script>
 </body>
 </html>
