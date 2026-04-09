@@ -70,47 +70,19 @@
         </a>
 
         <div class="pt-8 border-t border-slate-100 flex justify-between items-center">
-            <button id="btnSignOut" class="text-sm font-bold bni-red-text hover:underline focus:outline-none">Sign Out</button>
+            <a href="login.html" class="text-sm font-bold bni-red-text hover:underline">Sign Out</a>
             <span class="text-xs text-slate-300 font-medium">BNI MC Tracker v1.0</span>
         </div>
       </div>
     </section>
   </div>
 
-  <script type="module">
-    import { auth, db } from '../db/firebase-config.js';
-    import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
-    import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
-
-    document.addEventListener('DOMContentLoaded', () => {
-      const welcomeEl = document.getElementById('welcome-message');
-
-      onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          try {
-            const docRef = doc(db, 'users', user.uid);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-              const userData = docSnap.data();
-              const firstName = userData.name ? userData.name.split(' ')[0] : 'Admin';
-              welcomeEl.textContent = `Welcome, ${firstName}`;
-            } else {
-              window.location.href = './login.html';
-            }
-          } catch (err) {
-            console.error(err);
-            window.location.href = './login.html';
-          }
-        } else {
-          window.location.href = './login.html';
-        }
-      });
-
-      document.getElementById('btnSignOut').addEventListener('click', async () => {
-        await signOut(auth);
-        window.location.href = './login.html';
-      });
-    });
+  <script>
+      // Simple personalization using the data we saved in login.html
+      const userName = localStorage.getItem("userName");
+      if (userName) {
+          document.getElementById("welcome-message").textContent = `Welcome, ${userName.split(' ')[0]}`;
+      }
   </script>
 </body>
 </html>
