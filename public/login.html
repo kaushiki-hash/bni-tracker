@@ -7,9 +7,13 @@
   <title>BNI Attendance Tracker - Login</title>
   <link rel="stylesheet" href="login.css" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
 </head>
 
-<body>
+<body class="bg-slate-50 antialiased">
   <div class="page-shell">
     <section class="hero-panel">
       <div class="brand-box">
@@ -35,12 +39,12 @@
         <form id="login-form" class="form-grid" autocomplete="off">
           <label class="input-group">
             <span>Email address</span>
-            <input id="email" name="email" type="email" placeholder="" required autocomplete="off" />
+            <input id="email" name="email" type="email" placeholder="admin@bni.com" required autocomplete="off" />
           </label>
 
           <label class="input-group">
             <span>Password</span>
-            <input id="password" name="password" type="password" placeholder="" required minlength="6"
+            <input id="password" name="password" type="password" placeholder="••••••••" required minlength="6"
               autocomplete="new-password" />
           </label>
 
@@ -58,9 +62,9 @@
   </div>
 
   <script type="module">
-    import { userLogin } from '/src/auth/auth.js';
+    import { userLogin } from '../src/auth/auth.js';
 
-    // Clear fields on page load - prevents auto-fill auto-submit
+    // Anti-autofill & state cleanup
     window.addEventListener('load', () => {
       document.getElementById('email').value = '';
       document.getElementById('password').value = '';
@@ -72,26 +76,17 @@
     const btnText = document.getElementById('button-text');
     const btnSpinner = document.getElementById('button-spinner');
 
-    let alertTimeout;
     function showAlert(message) {
       messageBox.textContent = message;
       messageBox.classList.remove('hidden');
-      
-      clearTimeout(alertTimeout);
-      alertTimeout = setTimeout(() => {
-        messageBox.classList.add('hidden');
-      }, 5000);
+      setTimeout(() => messageBox.classList.add('hidden'), 5000);
     }
 
     const setLoading = (isLoading) => {
       submitBtn.disabled = isLoading;
-      if (isLoading) {
-        btnText.style.display = 'none';
-        btnSpinner.style.display = 'inline-block';
-      } else {
-        btnText.style.display = 'inline';
-        btnSpinner.style.display = 'none';
-      }
+      btnText.style.display = isLoading ? 'none' : 'inline';
+      btnSpinner.style.display = isLoading ? 'inline-block' : 'none';
+      submitBtn.style.opacity = isLoading ? '0.8' : '1';
     };
 
     loginForm.addEventListener('submit', async (e) => {
@@ -106,40 +101,30 @@
         return;
       }
 
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        showAlert('Please enter a valid email address (e.g., name@example.com)');
-        return;
-      }
-
       setLoading(true);
 
       try {
         const result = await userLogin(email, password);
 
         if (result.success) {
-          loginForm.reset();
           const role = result.user.role;
-          
           if (role === 'admin') {
             window.location.href = './admin-dashboard.html';
           } else if (role === 'captain') {
             window.location.href = './captain-dashboard.html';
           } else {
-            showAlert('Unauthorized role. Access denied.');
-            await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js').then(({signOut}) => signOut());
+            showAlert('Unauthorized role. Contact support.');
           }
         } else {
           showAlert(result.error);
         }
       } catch (error) {
         console.error('Login error:', error);
-        showAlert('Unable to sign in. Please try again.');
+        showAlert('Service unavailable. Try again later.');
       } finally {
         setLoading(false);
       }
     });
   </script>
 </body>
-
 </html>

@@ -4,12 +4,14 @@ import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-
 
 /**
  * Generic login for both admin and captain users
+ * Automatically detects role and handles Firestore profile verification
  */
 export const userLogin = async (email, password) => {
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
     
+    // Fetch profile from users collection (master list)
     const userDoc = await getDoc(doc(db, 'users', user.uid));
     
     if (!userDoc.exists()) {
@@ -29,26 +31,35 @@ export const userLogin = async (email, password) => {
       }
     };
   } catch (error) {
+    console.error('Auth Service Error:', error);
+    
+    if (error.message === 'User profile not found') {
+       return {
+         success: false,
+         error: 'Authenticated but profile missing in database. Contact Admin.'
+       };
+    }
+
     let errorMessage = 'Wrong credentials. Please check your email and password.';
     
     switch (error.code) {
       case 'auth/invalid-email':
-        errorMessage = 'Please enter a valid email address (e.g., name@example.com)';
+        errorMessage = 'Please enter a valid email address.';
         break;
       case 'auth/user-not-found':
-        errorMessage = 'No account found with this email address. Please contact your chapter administrator.';
+        errorMessage = 'No account found with this email.';
         break;
       case 'auth/wrong-password':
-        errorMessage = 'Wrong credentials. Please check your email and password.';
+        errorMessage = 'Incorrect password. Try again.';
         break;
       case 'auth/invalid-credential':
-        errorMessage = 'Wrong credentials. Please check your email and password.';
+        errorMessage = 'Wrong credentials. Please check details.';
         break;
       case 'auth/too-many-requests':
-        errorMessage = 'Too many failed attempts. Please try again later.';
+        errorMessage = 'Too many attempts. Locked temporarily.';
         break;
       case 'auth/network-request-failed':
-        errorMessage = 'Network error. Please check your internet connection.';
+        errorMessage = 'Network error. Check connection.';
         break;
     }
     
@@ -60,40 +71,12 @@ export const userLogin = async (email, password) => {
 };
 
 /**
- * Admin login authentication
+ * Check if user has admin role
  */
-export const adminLogin = async (email, password) => {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    
-    // Check if user has admin role
-    const userDoc = await getDoc(doc(db, 'users', user.uid));
-    
-    if (!userDoc.exists()) {
-      throw new Error('User profile not found');
-    }
-    
-    const userData = userDoc.data();
-    if (userData.role !== 'admin') {
-      throw new Error('Access denied. Admin role required.');
-    }
-    
-    return {
-      success: true,
-      user: {
-        uid: user.uid,
-        email: user.email,
-        name: userData.name,
-        role: userData.role
-      }
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message
-    };
-  }
+export const isAdminUser = async (uid) => {
+  if (!uid) return false;
+  const userDoc = await getDoc(doc(db, 'users', uid));
+  return userDoc.exists() && userDoc.data().role === 'admin';
 };
 
 /**
@@ -106,39 +89,4 @@ export const logoutUser = async () => {
   } catch (error) {
     return { success: false, error: error.message };
   }
-};
-
-/**
- * Get current user
- */
-export const getCurrentUser = async () => {
-  return new Promise((resolve) => {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          const userData = userDoc.data();
-          resolve({
-            uid: user.uid,
-            email: user.email,
-            name: userData?.name || 'User',
-            role: userData?.role || 'user'
-          });
-        } catch (error) {
-          console.error('Error getting user data:', error);
-          resolve(null);
-        }
-      } else {
-        resolve(null);
-      }
-    });
-  });
-};
-
-/**
- * Check if user is authenticated and is admin
- */
-export const isAdminUser = async () => {
-  const user = await getCurrentUser();
-  return user && user.role === 'admin';
 };

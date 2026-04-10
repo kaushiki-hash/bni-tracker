@@ -1,4 +1,4 @@
-import { db, auth } from '../../db/firebase-config.js';
+import { db, auth } from '../../../db/firebase-config.js';
 import { 
   collection, 
   query, 
@@ -8,8 +8,7 @@ import {
   doc, 
   getDoc, 
   orderBy, 
-  limit, 
-  setDoc 
+  limit 
 } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
 import { onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
 
@@ -39,32 +38,35 @@ class CaptainDashboard {
         try {
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (!userDoc.exists() || userDoc.data().role !== 'captain') {
-            window.location.href = 'home.html';
+            window.location.href = 'login.html';
             return;
           }
 
           const userData = userDoc.data();
           this.teamId = userData.teamId;
           
-          // Display Captain Info
-          document.getElementById('captain-name').textContent = userData.name || 'Captain';
-          const initials = (userData.name || 'C').charAt(0).toUpperCase();
-          document.getElementById('user-initials').textContent = initials;
+          // Display User Info
+          const nameEl = document.getElementById('captain-name');
+          const initialsEl = document.getElementById('user-initials');
+          if (nameEl) nameEl.textContent = userData.name || 'Captain';
+          if (initialsEl) initialsEl.textContent = (userData.name || 'C').charAt(0).toUpperCase();
 
           // Display Date
           const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-          document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', dateOpts);
+          const dateEl = document.getElementById('current-date');
+          if (dateEl) dateEl.textContent = new Date().toLocaleDateString('en-US', dateOpts);
 
           if (this.teamId) {
             await this.loadTeamInfo();
             await this.loadMembers();
           } else {
             this.showToast('No team assigned to your profile', 'error');
-            document.getElementById('loading-container').innerHTML = '<p class="text-slate-400 font-bold">No team assigned.</p>';
+            const loader = document.getElementById('loading-container');
+            if (loader) loader.innerHTML = '<p class="text-slate-400 font-bold p-10">No team assigned. Contact Admin.</p>';
           }
 
         } catch (err) {
-          console.error(err);
+          console.error('Auth sync error:', err);
           this.showToast('Authentication error', 'error');
         }
       } else {
@@ -77,12 +79,12 @@ class CaptainDashboard {
     try {
       const teamDoc = await getDoc(doc(db, 'teams', this.teamId));
       if (teamDoc.exists()) {
-        const teamData = teamDoc.data();
-        this.teamName = teamData.teamName;
-        document.getElementById('team-badge').textContent = this.teamName.toUpperCase();
+        this.teamName = teamDoc.data().teamName;
+        const badge = document.getElementById('team-badge');
+        if (badge) badge.textContent = this.teamName.toUpperCase();
       }
     } catch (err) {
-      console.warn('Error loading team name:', err);
+      console.warn('Team fetch failed', err);
     }
   }
 
@@ -97,73 +99,72 @@ class CaptainDashboard {
       this.members = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
       if (this.members.length === 0) {
-        loadingContainer.innerHTML = '<p class="text-slate-400 font-bold">No members found in this team.</p>';
+        if (loadingContainer) loadingContainer.innerHTML = '<p class="text-slate-400 font-bold p-10">No members found in your team.</p>';
         return;
       }
 
-      loadingContainer.classList.add('hidden');
-      listContainer.classList.remove('hidden');
+      if (loadingContainer) loadingContainer.classList.add('hidden');
+      if (listContainer) listContainer.classList.remove('hidden');
 
       let html = '';
       for (const member of this.members) {
         const prevStatus = await this.getPreviousAttendance(member.id);
         const name = member.memberName || member.name;
         
-        // Initialize state
+        // Initialize local state
         this.attendanceData[member.id] = { status: 'Present', reason: '', priorIntimation: 'No' };
 
         html += `
-          <div class="bg-white rounded-2xl p-4 card-shadow border-l-4 border-green-500 transition-all duration-300" id="member-card-${member.id}">
-              <div class="flex justify-between items-start mb-4">
-                  <div>
-                      <h3 class="font-extrabold text-slate-800 text-lg leading-tight">${name}</h3>
+          <div class="bg-white rounded-2xl p-5 mb-4 border border-slate-100 shadow-sm border-l-4 border-emerald-500 transition-all duration-300" id="member-card-${member.id}">
+              <div class="flex justify-between items-start">
+                  <div class="flex-1">
+                      <h3 class="font-bold text-slate-800 text-base leading-tight">${name}</h3>
                       <div class="flex items-center gap-2 mt-1">
-                        <span class="text-[10px] uppercase tracking-widest font-black text-slate-400">Previous:</span>
-                        <span class="text-[10px] uppercase font-black ${prevStatus === 'Present' ? 'text-green-600' : 'text-red-500'}">${prevStatus}</span>
+                        <span class="text-[9px] uppercase tracking-widest font-black text-slate-400">Previous Meet:</span>
+                        <span class="text-[9px] uppercase font-black ${prevStatus === 'Present' ? 'text-emerald-600' : 'text-rose-500'}">${prevStatus}</span>
                       </div>
                   </div>
                   
-                  <div class="inline-flex bg-slate-100 p-1 rounded-xl shadow-inner">
+                  <div class="flex bg-slate-50 p-1 rounded-xl border border-slate-100">
                       <button onclick="window.dashboard.toggleAttendance('${member.id}', true)" 
                         id="btn-p-${member.id}" 
-                        class="px-5 py-2 rounded-lg font-black text-xs transition-all bg-green-500 text-white shadow-md">P</button>
+                        class="px-5 py-2 rounded-lg font-black text-xs transition-all bg-emerald-500 text-white shadow-sm">P</button>
                       <button onclick="window.dashboard.toggleAttendance('${member.id}', false)" 
                         id="btn-a-${member.id}" 
-                        class="px-5 py-2 rounded-lg font-black text-xs transition-all text-slate-400">A</button>
+                        class="px-5 py-2 rounded-lg font-black text-xs transition-all text-slate-400 hover:text-slate-600">A</button>
                   </div>
               </div>
 
-              <div id="absence-fields-${member.id}" class="hidden space-y-4 pt-4 border-t border-slate-50 mt-2">
-                  <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-1.5">Reason for Absence</label>
+              <div id="absence-fields-${member.id}" class="hidden space-y-4 pt-4 border-t border-slate-50 mt-4">
+                  <div class="space-y-1.5">
+                      <label class="text-[10px] font-black text-slate-500 uppercase tracking-widest block ml-1">Reason for Absence</label>
                       <select onchange="window.dashboard.updateField('${member.id}', 'reason', this.value)" 
-                        class="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500/10 focus:border-red-500 transition-all">
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-rose-500/10 focus:border-rose-500 transition-all">
                           <option value="">Select a reason...</option>
                           <option value="Personal / Family">Personal / Family</option>
                           <option value="Health / Medical">Health / Medical</option>
                           <option value="Professional / Business">Professional / Business</option>
-                          <option value="Out of Town">Out of Town</option>
+                          <option value="Travel / Out of Town">Travel / Out of Town</option>
                           <option value="Emergency">Emergency</option>
                           <option value="No Intimation">No Intimation</option>
                       </select>
                   </div>
-                  <div class="flex items-center gap-3 px-2">
-                      <div class="relative flex items-center">
-                        <input type="checkbox" id="intimation-checkbox-${member.id}" 
-                          onchange="window.dashboard.updateField('${member.id}', 'priorIntimation', this.checked ? 'Yes' : 'No')"
-                          class="w-5 h-5 rounded-md border-slate-300 text-red-600 focus:ring-red-500 transition-all accent-red-600">
-                      </div>
-                      <label class="text-xs font-bold text-slate-600">Prior intimation received?</label>
+                  <div class="flex items-center gap-3 px-1">
+                      <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" onchange="window.dashboard.updateField('${member.id}', 'priorIntimation', this.checked ? 'Yes' : 'No')" class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                        <span class="ms-3 text-xs font-bold text-slate-600">Prior intimation received?</span>
+                      </label>
                   </div>
               </div>
           </div>
         `;
       }
-      listContainer.innerHTML = html;
+      if (listContainer) listContainer.innerHTML = html;
 
     } catch (err) {
       console.error(err);
-      this.showToast('Failed to load team members', 'error');
+      this.showToast('Failed to load team list', 'error');
     }
   }
 
@@ -180,9 +181,9 @@ class CaptainDashboard {
         return snap.docs[0].data().status;
       }
     } catch (err) {
-      console.warn('Prev attendance fetch failed', err);
+      console.warn('Previous record error', err);
     }
-    return 'No record';
+    return 'New User';
   }
 
   toggleAttendance(memberId, isPresent) {
@@ -194,28 +195,35 @@ class CaptainDashboard {
     this.attendanceData[memberId].status = isPresent ? 'Present' : 'Absent';
 
     if (isPresent) {
-      absenceFields.classList.add('hidden');
-      card.classList.replace('border-red-500', 'border-green-500');
-      btnP.className = "px-5 py-2 rounded-lg font-black text-xs transition-all bg-green-500 text-white shadow-md";
-      btnA.className = "px-5 py-2 rounded-lg font-black text-xs transition-all text-slate-400";
+      absenceFields?.classList.add('hidden');
+      card?.classList.replace('border-rose-500', 'border-emerald-500');
+      if (btnP) btnP.className = "px-5 py-2 rounded-lg font-black text-xs transition-all bg-emerald-500 text-white shadow-sm";
+      if (btnA) btnA.className = "px-5 py-2 rounded-lg font-black text-xs transition-all text-slate-400 hover:text-slate-600";
     } else {
-      absenceFields.classList.remove('hidden');
-      card.classList.contains('border-green-500') ? card.classList.replace('border-green-500', 'border-red-500') : card.classList.add('border-red-500');
-      btnP.className = "px-5 py-2 rounded-lg font-black text-xs transition-all text-slate-400";
-      btnA.className = "px-5 py-2 rounded-lg font-black text-xs transition-all bg-red-600 text-white shadow-md";
+      absenceFields?.classList.remove('hidden');
+      if (card?.classList.contains('border-emerald-500')) {
+        card.classList.replace('border-emerald-500', 'border-rose-500');
+      } else {
+        card?.classList.add('border-rose-500');
+      }
+      if (btnP) btnP.className = "px-5 py-2 rounded-lg font-black text-xs transition-all text-slate-400 hover:text-slate-600";
+      if (btnA) btnA.className = "px-5 py-2 rounded-lg font-black text-xs transition-all bg-rose-600 text-white shadow-sm";
     }
   }
 
   updateField(memberId, field, value) {
-    this.attendanceData[memberId][field] = value;
+    if (this.attendanceData[memberId]) {
+      this.attendanceData[memberId][field] = value;
+    }
   }
 
   async submitAttendance() {
     const submitBtn = document.getElementById('save-attendance-btn');
-    const originalText = submitBtn.textContent;
+    if (!submitBtn) return;
     
+    const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting Data...';
+    submitBtn.innerHTML = '<span class="animate-spin mr-2">◌</span> Saving...';
 
     try {
       const batch = writeBatch(db);
@@ -225,7 +233,12 @@ class CaptainDashboard {
         const data = this.attendanceData[memberId];
         const member = this.members.find(m => m.id === memberId);
         
-        // Composite key to prevent duplicates: memberId_date
+        // Validation for absent reasons
+        if (data.status === 'Absent' && !data.reason) {
+          throw new Error(`Reason required for ${member.memberName || member.name}`);
+        }
+
+        // Composite key: memberId_date
         const docRef = doc(db, 'attendance', `${memberId}_${this.today}`);
         
         batch.set(docRef, {
@@ -242,20 +255,20 @@ class CaptainDashboard {
       }
 
       await batch.commit();
-      this.showToast('Attendance submitted successfully!', 'success');
+      this.showToast('Attendance logged for today!', 'success');
       
       submitBtn.textContent = 'Submitted ✅';
-      submitBtn.classList.replace('bni-red', 'bg-emerald-500');
+      submitBtn.classList.replace('bg-rose-600', 'bg-emerald-500');
       
       setTimeout(() => {
         submitBtn.disabled = false;
         submitBtn.textContent = originalText;
-        submitBtn.classList.replace('bg-emerald-500', 'bni-red');
-      }, 3000);
+        submitBtn.classList.replace('bg-emerald-500', 'bg-rose-600');
+      }, 5000);
 
     } catch (err) {
       console.error(err);
-      this.showToast('Submission failed! Check connection.', 'error');
+      this.showToast(err.message || 'Submission failed!', 'error');
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
     }
@@ -266,7 +279,6 @@ class CaptainDashboard {
       window.location.href = 'login.html';
     }).catch(err => {
       console.error(err);
-      this.showToast('Logout failed', 'error');
     });
   }
 
@@ -275,20 +287,23 @@ class CaptainDashboard {
     if (!container) return;
 
     const toast = document.createElement('div');
-    toast.className = `px-6 py-4 rounded-2xl shadow-2xl font-bold flex items-center transition-all duration-300 toast-animate border ${
+    toast.className = `px-6 py-4 rounded-2xl shadow-2xl font-bold flex items-center transition-all duration-300 border ${
       type === 'success' ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-red-600 text-white border-red-400'
-    }`;
+    } transform translate-y-20 opacity-0`;
     toast.textContent = msg;
     container.appendChild(toast);
 
+    requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-20', 'opacity-0');
+    });
+
     setTimeout(() => {
-      toast.classList.add('opacity-0', 'translate-x-full');
+      toast.classList.add('opacity-0', 'translate-y-10');
       setTimeout(() => toast.remove(), 300);
     }, 4000);
   }
 }
 
-// Global hook for events
 document.addEventListener('DOMContentLoaded', () => {
     window.dashboard = new CaptainDashboard();
 });

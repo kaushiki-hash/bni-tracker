@@ -29,16 +29,18 @@ class AdminDashboard {
 
   showToast(msg, type = "success") {
     const container = document.getElementById('toastContainer');
-    if (!container) return alert(msg);
+    if (!container) {
+      console.log('Toast:', msg);
+      return;
+    }
     const toast = document.createElement('div');
-    toast.className = `px-6 py-4 rounded-xl shadow-2xl font-bold flex items-center transition-all duration-500 transform translate-x-[120%] border ${type === 'success' ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-red-600 text-white border-red-400'
-      }`;
+    toast.className = `px-6 py-4 rounded-xl shadow-2xl font-bold flex items-center transition-all duration-500 transform translate-x-[120%] border ${
+      type === 'success' ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-red-600 text-white border-red-400'
+    }`;
     toast.textContent = msg;
     container.appendChild(toast);
 
-    requestAnimationFrame(() => {
-      toast.classList.remove('translate-x-[120%]');
-    });
+    requestAnimationFrame(() => toast.classList.remove('translate-x-[120%]'));
 
     setTimeout(() => {
       toast.classList.add('translate-x-[120%]');
@@ -54,17 +56,15 @@ class AdminDashboard {
           const docSnap = await getDoc(docRef);
           if (docSnap.exists() && docSnap.data().role === 'admin') {
             const name = docSnap.data().name || 'Admin';
-            const initials = name.charAt(0).toUpperCase();
             const nameEl = document.getElementById('adminName');
             if (nameEl) nameEl.textContent = name;
-            const initialsEl = document.getElementById('userInitials');
-            if (initialsEl) initialsEl.textContent = initials;
             await this.loadInitialData();
           } else {
             window.location.href = './login.html';
           }
         } catch (err) {
-          console.error(err);
+          console.error('Auth Check Error:', err);
+          window.location.href = './login.html';
         }
       } else {
         window.location.href = './login.html';
@@ -83,9 +83,11 @@ class AdminDashboard {
 
   async loadInitialData() {
     try {
-      const teamsSnap = await getDocs(collection(db, 'teams'));
-      const membersSnap = await getDocs(collection(db, 'members'));
-      const captainsSnap = await getDocs(collection(db, 'captains'));
+      const [teamsSnap, membersSnap, captainsSnap] = await Promise.all([
+        getDocs(collection(db, 'teams')),
+        getDocs(collection(db, 'members')),
+        getDocs(collection(db, 'captains'))
+      ]);
 
       this.teams = teamsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       this.captains = captainsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -94,23 +96,27 @@ class AdminDashboard {
       membersData.forEach(m => this.members[m.id] = m.memberName || m.name);
       this.teams.forEach(t => this.teamMap[t.id] = t.teamName);
 
-      document.getElementById('statTeams').textContent = this.teams.length;
-      document.getElementById('statMembers').textContent = membersData.length;
+      // UI Update
+      const statTeams = document.getElementById('statTeams');
+      const statMembers = document.getElementById('statMembers');
+      if (statTeams) statTeams.textContent = this.teams.length;
+      if (statMembers) statMembers.textContent = membersData.length;
 
+      // Populate filters
       const teamFilter = document.getElementById('filterTeam');
-      this.teams.forEach(t => {
-        teamFilter.add(new Option(t.teamName, t.id));
-      });
-
       const captainFilter = document.getElementById('filterCaptain');
-      this.captains.forEach(c => {
-        captainFilter.add(new Option(c.name, c.id));
-      });
+
+      if (teamFilter) {
+        this.teams.forEach(t => teamFilter.add(new Option(t.teamName, t.id)));
+      }
+      if (captainFilter) {
+        this.captains.forEach(c => captainFilter.add(new Option(c.name, c.id)));
+      }
 
       await this.loadAttendanceData();
     } catch (err) {
-      console.error('Error:', err);
-      this.showToast('Failed to load framework data', 'error');
+      console.error('Initial Data Load Error:', err);
+      this.showToast('Failed to load master records', 'error');
     }
   }
 
@@ -128,8 +134,8 @@ class AdminDashboard {
       this.calculateStats();
       this.renderTable(this.attendanceData);
     } catch (err) {
-      console.error('Error fetching attendance:', err);
-      this.showToast('Failed to fetch attendance records', 'error');
+      console.error('Attendance Load Error:', err);
+      this.showToast('Could not sync attendance data', 'error');
     } finally {
       if (tableLoading) tableLoading.classList.add('hidden');
       if (tableContainer) tableContainer.classList.remove('hidden');
@@ -137,6 +143,7 @@ class AdminDashboard {
   }
 
   calculateStats() {
+    // Stats for recent 7 days
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const isoDate7 = sevenDaysAgo.toISOString().split('T')[0];
@@ -147,95 +154,105 @@ class AdminDashboard {
     let absents = 0;
 
     recentRecords.forEach(r => {
-      if (r.status === 'Present' || r.status === true) presents++;
+      const isPresent = r.status === 'Present' || r.status === true;
+      if (isPresent) presents++;
       else absents++;
     });
 
     const total = presents + absents;
     const percentage = total > 0 ? Math.round((presents / total) * 100) : 0;
 
-    document.getElementById('statAttendance').textContent = `${percentage}%`;
-    document.getElementById('statAbsent').textContent = absents;
+    const statAtt = document.getElementById('statAttendance');
+    const statAbs = document.getElementById('statAbsent');
+    if (statAtt) statAtt.textContent = `${percentage}%`;
+    if (statAbs) statAbs.textContent = absents;
   }
 
   applyFilters() {
     const date = document.getElementById('filterDate').value;
-    const captain = document.getElementById('filterCaptain').value;
-    const team = document.getElementById('filterTeam').value;
+    const captainId = document.getElementById('filterCaptain').value;
+    const teamId = document.getElementById('filterTeam').value;
 
     let filtered = this.attendanceData;
 
     if (date) filtered = filtered.filter(a => a.date === date);
-    if (captain) filtered = filtered.filter(a => a.captainId === captain);
-    if (team) filtered = filtered.filter(a => a.teamId === team);
+    if (captainId) filtered = filtered.filter(a => a.captainId === captainId);
+    if (teamId) filtered = filtered.filter(a => a.teamId === teamId);
 
     this.renderTable(filtered);
-    this.showToast('Filters applied successfully');
+    this.showToast('Filtered results loaded');
   }
 
   resetFilters() {
-    document.getElementById('filterDate').value = '';
-    document.getElementById('filterCaptain').value = '';
-    document.getElementById('filterTeam').value = '';
+    ['filterDate', 'filterCaptain', 'filterTeam'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
     this.renderTable(this.attendanceData);
-    this.showToast('Filters cleared');
+    this.showToast('All filters cleared');
   }
 
   formatDate(dateStr) {
     if (!dateStr) return '-';
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-GB');
-  }
-
-  getCaptainName(id) {
-    const cap = this.captains.find(c => c.id === id);
-    return cap ? cap.name : '-';
+    try {
+      const [y, m, d] = dateStr.split('-');
+      return `${d}/${m}/${y}`;
+    } catch (e) {
+      return dateStr;
+    }
   }
 
   renderTable(data) {
     const tbody = document.getElementById('attendanceTbody');
     const theTable = document.getElementById('attendanceTable');
     const emptyState = document.getElementById('emptyState');
+    if (!tbody) return;
+
     tbody.innerHTML = '';
 
     if (data.length === 0) {
-      theTable.classList.add('hidden');
-      emptyState.classList.remove('hidden');
-      emptyState.classList.add('flex');
+      if (theTable) theTable.classList.add('hidden');
+      if (emptyState) {
+        emptyState.classList.remove('hidden');
+        emptyState.classList.add('flex');
+      }
       return;
     }
 
-    theTable.classList.remove('hidden');
-    emptyState.classList.add('hidden');
-    emptyState.classList.remove('flex');
+    if (theTable) theTable.classList.remove('hidden');
+    if (emptyState) {
+      emptyState.classList.add('hidden');
+      emptyState.classList.remove('flex');
+    }
 
     data.forEach((row, i) => {
       const isPresent = row.status === 'Present' || row.status === true;
       const statusBadge = isPresent
-        ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 shadow-sm">Present</span>`
-        : `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 shadow-sm">Absent</span>`;
+        ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase bg-green-100 text-green-700">Present</span>`
+        : `<span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase bg-red-100 text-red-700">Absent</span>`;
 
-      const intimationBadge = row.priorIntimation === 'Yes' || row.priorIntimation === true
-        ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700 shadow-sm">Yes</span>`
-        : (row.priorIntimation === 'No' || row.priorIntimation === false ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-500 shadow-sm">No</span>` : '-');
+      const hasIntimation = row.priorIntimation === 'Yes' || row.priorIntimation === true;
+      const intimationBadge = hasIntimation
+        ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase bg-green-100 text-green-700">Yes</span>`
+        : (row.priorIntimation === 'No' || row.priorIntimation === false ? `<span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase bg-slate-100 text-slate-500">No</span>` : '-');
 
       const tr = document.createElement('tr');
-      tr.className = "hover:bg-blue-50/50 transition-colors group";
+      tr.className = "hover:bg-blue-50/50 transition-colors group border-b border-slate-100 last:border-0";
       tr.innerHTML = `
-        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-400 group-hover:text-blue-500">00${i + 1}</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-800">${row.memberName || this.members[row.memberId] || '-'}</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-600">${this.teamMap[row.teamId] || '-'}</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-600">${this.getCaptainName(row.captainId)}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-xs font-black text-slate-400">00${i + 1}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-extrabold text-slate-800">${row.memberName || this.members[row.memberId] || '-'}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-600">${this.teamMap[row.teamId] || '-'}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-600">${this.captains.find(c => c.id === row.captainId)?.name || '-'}</td>
         <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-500">${row.reason || '-'}</td>
         <td class="px-6 py-4 whitespace-nowrap">${intimationBadge}</td>
-        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-slate-500">${this.formatDate(row.date)}</td>
+        <td class="px-6 py-4 whitespace-nowrap text-sm font-extrabold text-slate-500">${this.formatDate(row.date)}</td>
       `;
       tbody.appendChild(tr);
     });
   }
 
-  getTableData() {
+  getCurrentTableData() {
     const data = [];
     const tbody = document.getElementById('attendanceTbody');
     const rows = tbody.querySelectorAll('tr');
@@ -258,45 +275,60 @@ class AdminDashboard {
   }
 
   exportExcel() {
-    const data = this.getTableData();
-    if (data.length === 0) return this.showToast('No data to export!', 'error');
+    const data = this.getCurrentTableData();
+    if (data.length === 0) return this.showToast('No records to export', 'error');
 
-    const ws = XLSX.utils.aoa_to_sheet([["ID", "Member Name", "Team", "Captain", "Status", "Reason", "Prior Intimation", "Date"], ...data]);
+    const headers = [["SR NO", "MEMBER NAME", "TEAM", "CAPTAIN", "STATUS", "REASON", "INTIMATION", "DATE"]];
+    const ws = XLSX.utils.aoa_to_sheet([...headers, ...data]);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-    XLSX.writeFile(wb, "BNI_Overall_Attendance.xlsx");
-    this.showToast('Excel document generated');
+    XLSX.utils.book_append_sheet(wb, ws, "Attendance Report");
+    XLSX.writeFile(wb, `BNI_Attendance_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+    this.showToast('Excel report generated successfully');
   }
 
   exportPDF() {
-    const data = this.getTableData();
-    if (data.length === 0) return this.showToast('No data to export!', 'error');
+    const data = this.getCurrentTableData();
+    if (data.length === 0) return this.showToast('No records to export', 'error');
 
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.text("BNI Attendance Master Report", 14, 15);
+    const doc = new jsPDF('l', 'mm', 'a4');
+    
+    doc.setFontSize(18);
+    doc.setTextColor(207, 32, 46); // BNI Redish
+    doc.text("BNI CHAPTER ATTENDANCE MASTER REPORT", 14, 20);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 28);
 
     doc.autoTable({
-      head: [["ID", "Member", "Team", "Captain", "Status", "Reason", "Intimation", "Date"]],
+      head: [["#", "MEMBER NAME", "TEAM", "CAPTAIN", "STATUS", "REASON", "INTIMATION", "DATE"]],
       body: data,
-      startY: 20,
-      styles: { fontSize: 8, font: 'helvetica' },
-      headStyles: { fillColor: [10, 37, 64] }
+      startY: 35,
+      styles: { fontSize: 8, cellPadding: 3, font: 'helvetica' },
+      headStyles: { fillColor: [10, 37, 64], textColor: 255, fontStyle: 'bold' },
+      alternateRowStyles: { fillColor: [248, 250, 252] },
+      columnStyles: { 0: { cellWidth: 15 }, 4: { fontStyle: 'bold' } }
     });
 
-    doc.save("BNI_Attendance_Report.pdf");
-    this.showToast('PDF document generated');
+    doc.save(`BNI_Attendance_Report_${new Date().getTime()}.pdf`);
+    this.showToast('PDF report generated successfully');
   }
 
   shareWhatsApp() {
-    const data = this.getTableData();
-    if (data.length === 0) return this.showToast('No data to share!', 'error');
+    const data = this.getCurrentTableData();
+    if (data.length === 0) return this.showToast('Nothing to share', 'error');
 
     const total = data.length;
     let present = 0;
-    data.forEach(row => { if (row[4] === 'Present') present++; });
+    data.forEach(row => { if (row[4] === 'PRESENT') present++; });
 
-    const message = `*📊 BNI CHAPTER ATTENDANCE SUMMARY*\n\n*Total Records:* ${total}\n*Present:* ${present} ✅\n*Absent:* ${total - present} ❌\n\n_Generated securely via BNI Admin Tracker._`;
+    const message = `*📊 BNI MC TRACKER: ATTENDANCE SUMMARY*\n\n` +
+      `*Total Members:* ${total}\n` +
+      `*Present Records:* ${present} ✅\n` +
+      `*Absent Records:* ${total - present} ❌\n\n` +
+      `_Generated via BNI Admin Dashboard_`;
+
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/?text=${encoded}`, '_blank');
   }
